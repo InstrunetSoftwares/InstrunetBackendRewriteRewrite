@@ -1,0 +1,6 @@
+@InstrunetBackend.Server_HostAddress = http://localhost:5298
+
+GET {{InstrunetBackend.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
