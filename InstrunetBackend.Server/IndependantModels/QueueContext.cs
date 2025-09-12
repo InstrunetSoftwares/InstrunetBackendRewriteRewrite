@@ -2,7 +2,7 @@
 
 namespace InstrunetBackend.Server.IndependantModels;
 
-public class QueueContext
+public class QueueContext : IDisposable
 {
     public required CancellationTokenSource CancellationToken { get; set; }
     public required string Uuid { get; set;  }
@@ -17,4 +17,19 @@ public class QueueContext
     public required Task ProcessTask { get; set;  }
     public string? Email { get; set;  }
     public required DateTime DateTimeUploaded { get; set;  }
+
+    public void Dispose()
+    {
+        while (true)
+        {
+            if (ProcessTask.IsCompleted || ProcessTask.IsCanceled)
+            {
+                CancellationToken.Dispose();
+                ProcessTask.Dispose();
+                Console.WriteLine($"{Name} disposed successfully. ");
+                break; 
+            }
+        }
+        
+    }
 }
