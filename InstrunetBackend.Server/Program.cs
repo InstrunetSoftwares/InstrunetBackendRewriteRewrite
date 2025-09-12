@@ -1,19 +1,81 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Reflection;
+using System.Text;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.Endpoints;
 using InstrunetBackend.Server.IndependantModels;
+using InstrunetBackend.Server.Services;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
 
 namespace InstrunetBackend.Server;
 
-public class Program
+internal class Program
 {
+    public static readonly string LibraryCommon = "./lib-runtime/";
+    public static string CWebP = LibraryCommon + "cwebp/"; 
+    private static void Initialize()
+    {
+        Console.WriteLine("Decompressing libraries");
+        Stream? cWebp=null;
+        try
+        {
+            Directory.CreateDirectory(CWebP);
+            var executingAssembly = Assembly.GetExecutingAssembly();
+            cWebp = executingAssembly
+                .GetManifestResourceStream("InstrunetBackend.Server.lib.cwebp.libwebp.zip");
+            ZipFile.ExtractToDirectory(cWebp!, CWebP, Encoding.UTF8, true);
+            Directory.Delete(CWebP + "__MACOSX", true);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Unknown error while zipping library. ");
+            Environment.Exit(1);
+        }
+        finally
+        {
+            cWebp?.Dispose();
+            GC.Collect();
+        }
+        
+        
+       
+        
+        
+    }
     public static void Main(string[] args)
     {
+        Initialize();
+        _ = new NeteaseMusicService();
+        _ = new LrcApiService(); 
         var builder = WebApplication.CreateBuilder(args);
+
+        // Cors
+        builder.Services.AddCors(o =>
+        {
+            o.AddPolicy("All", p =>
+            {
+                p.WithOrigins("http://localhost:5173", "https://andyxie.cn:4000", "http://localhost:3000",
+                        "https://andyxie.cn:4001")
+                    .WithHeaders("Content-Type").AllowCredentials();
+            });
+        });
+
+        // Required for session storage. 
+        builder.Services.AddDistributedMemoryCache();
+        builder.Services.AddSession(o =>
+        {
+            o.IdleTimeout = TimeSpan.FromDays(7);
+            o.Cookie.HttpOnly = true;
+            o.Cookie.IsEssential = true;
+            o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        });
+
+        // Payload size
+        builder.Services.Configure<KestrelServerOptions>(o => o.Limits.MaxRequestBodySize = 1_000_000_000);
 
         // Add services to the container.
         builder.Services.AddAuthorization();
@@ -29,18 +91,22 @@ public class Program
             app.MapOpenApi();
         }
 
-        app.UseHttpsRedirection();
+        // app.UseHttpsRedirection();
+
+        app.UseCors("All");
 
         app.UseAuthorization();
 
+        app.UseSession();
+
         var queue = new ObservableCollection<QueueContext>();
-        queue.CollectionChanged += (s, e) =>
+        queue.CollectionChanged += (_, e) =>
         {
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
-                    newItem.ProcessTask = new Task(() =>
+                    Task t = new Task(() =>
                         {
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
@@ -79,7 +145,7 @@ public class Program
                                 // Write file to disk. 
                                 Directory.CreateDirectory("./tmp/instrunet/pre-process");
                                 var fileStream =
-                                    System.IO.File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
+                                    File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
                                 fileStream.Write(newItem.File, 0, newItem.File.Length);
                                 fileStream.Dispose();
 
@@ -109,7 +175,7 @@ public class Program
                                 }
 
                                 File.Delete($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                                if (p.ExitCode == 0)
+                                if (p.ExitCode != 0)
                                 {
                                     p.Dispose();
                                     return;
@@ -143,8 +209,8 @@ public class Program
                                         break;
                                 }
 
-                                var processedFileStream = File.OpenRead("./tmp/instrunet/post-process/{fileName}");
-                                using var ms = new MemoryStream();
+                                var processedFileStream = File.OpenRead($"./tmp/instrunet/post-process/{fileName}");
+                                var ms = new MemoryStream();
                                 processedFileStream.CopyTo(ms);
                                 processedFileStream.Dispose();
 
@@ -154,26 +220,64 @@ public class Program
                                     dbContext.InstrunetEntries.Add(new()
                                     {
                                         Uuid = newItem.Uuid, SongName = newItem.Name, AlbumName = newItem.AlbumName,
-                                        LinkTo = newItem.Link ?? "", Email = newItem.Email, //Far more
+                                        LinkTo = newItem.Link ?? "", Email = newItem.Email,
+                                        Albumcover = newItem.AlbumCover, Artist = newItem.Artist,
+                                        Databinary = ms.ToArray(),
+                                        Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds(),
+                                        Kind = newItem.Kind, User = newItem.UserUuid
                                     });
                                     dbContext.SaveChanges();
+                                    ms.Dispose();
                                 }
-                                catch (DbUpdateException e)
+                                catch (DbUpdateException dbUpdateException)
                                 {
-                                    Console.WriteLine(e.Message);
+                                    Console.WriteLine(dbUpdateException.Message);
                                 }
                             }
+
                         },
                         newItem.CancellationToken.Token);
+                    t.ContinueWith((iT) =>
+                    {
+                        while (true)
+                        {
+                            if (iT.IsCompleted || iT.IsCanceled)
+                            {
+                                queue.RemoveAt(0);
+                                break; 
+                            }
+                        }
+                    });
+                    newItem.ProcessTask = t; 
+                    if (queue.Count == 1)
+                    {
+                        queue[0].ProcessTask.Start();
+                    }
+
                     break;
                 case NotifyCollectionChangedAction.Remove:
-                    queue[0].ProcessTask.Start();
+                    if (e.OldItems != null)
+                    {
+                        foreach (var eOldItem in e.OldItems)
+                        {
+                            ((QueueContext)eOldItem).Dispose();
+                        }
+                    }
+
+                    GC.Collect(); 
+                    if (queue.Count >= 1)
+                    {
+                        queue[0].ProcessTask.Start();
+                    }
+
                     break;
             }
         };
 
         app.MapAllProcessingEndpoints(queue);
-
+        app.MapGet("/ping", () => Results.Ok("Pong"));
+        
+        Console.WriteLine(Environment.OSVersion.Platform);
         app.Run();
     }
 }
