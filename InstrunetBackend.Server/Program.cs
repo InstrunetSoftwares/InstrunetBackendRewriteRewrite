@@ -16,11 +16,12 @@ namespace InstrunetBackend.Server;
 internal class Program
 {
     public static readonly string LibraryCommon = "./lib-runtime/";
-    public static string CWebP = LibraryCommon + "cwebp/"; 
+    public static string CWebP = LibraryCommon + "cwebp/";
+
     private static void Initialize()
     {
         Console.WriteLine("Decompressing libraries");
-        Stream? cWebp=null;
+        Stream? cWebp = null;
         try
         {
             Directory.CreateDirectory(CWebP);
@@ -40,17 +41,13 @@ internal class Program
             cWebp?.Dispose();
             GC.Collect();
         }
-        
-        
-       
-        
-        
     }
+
     public static void Main(string[] args)
     {
         Initialize();
         _ = new NeteaseMusicService();
-        _ = new LrcApiService(); 
+        _ = new LrcApiService();
         var builder = WebApplication.CreateBuilder(args);
 
         // Cors
@@ -91,7 +88,10 @@ internal class Program
             app.MapOpenApi();
         }
 
-        // app.UseHttpsRedirection();
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
 
         app.UseCors("All");
 
@@ -234,7 +234,6 @@ internal class Program
                                     Console.WriteLine(dbUpdateException.Message);
                                 }
                             }
-
                         },
                         newItem.CancellationToken.Token);
                     t.ContinueWith((iT) =>
@@ -244,11 +243,11 @@ internal class Program
                             if (iT.IsCompleted || iT.IsCanceled)
                             {
                                 queue.RemoveAt(0);
-                                break; 
+                                break;
                             }
                         }
                     });
-                    newItem.ProcessTask = t; 
+                    newItem.ProcessTask = t;
                     if (queue.Count == 1)
                     {
                         queue[0].ProcessTask.Start();
@@ -264,7 +263,7 @@ internal class Program
                         }
                     }
 
-                    GC.Collect(); 
+                    GC.Collect();
                     if (queue.Count >= 1)
                     {
                         queue[0].ProcessTask.Start();
@@ -274,9 +273,18 @@ internal class Program
             }
         };
 
-        app.MapAllProcessingEndpoints(queue);
+        var cache = new List<QueueContext>();
+        var messages = new List<object>();
+
+        app.MapAllProcessingEndpoints(queue)
+            .MapAllGetterEndpoints(cache)
+            .MapAllJustTalkEndpoints(messages)
+            .MapAllInstrunetCommunityEndpoints()
+            .MapAllUserEndpoints();
+
+
         app.MapGet("/ping", () => Results.Ok("Pong"));
-        
+
         Console.WriteLine(Environment.OSVersion.Platform);
         app.Run();
     }

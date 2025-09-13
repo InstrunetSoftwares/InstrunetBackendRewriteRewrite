@@ -6,3 +6,4 @@ riderModule.iml
 /**/**/InstrunetDbSecret
 InstrunetBackend.Server/lib/**/*
 InstrunetBackend.Server/lib-runtime/**/*
+InstrunetBackend.Server/Certs/**/*

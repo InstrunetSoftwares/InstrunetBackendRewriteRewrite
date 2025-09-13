@@ -160,7 +160,7 @@ internal static class MapProcessingEndpoints
                     goto skip_compression;
                 }
 
-                var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80))).Build();
+                var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
                 var input = new MemoryStream(submitContext.AlbumCover.DataUrlToByteArray());
                 var output = new MemoryStream();
                 encoder.Encode(input, output);
@@ -206,7 +206,7 @@ internal static class MapProcessingEndpoints
         return app;
     }
 
-    public static WebApplication NcmUrl(this WebApplication app, ObservableCollection<QueueContext> queue)
+    public static WebApplication NcmUrl(this WebApplication app)
     {
         app.MapPost("/ncm/url", async ([FromBody] NcmUrlContext body, HttpContext context) =>
         {
@@ -217,7 +217,7 @@ internal static class MapProcessingEndpoints
                 handler = new HttpClientHandler();
                 handler.UseCookies = false;
                 client = new HttpClient(handler);
-                client.BaseAddress = new Uri("http://localhost:5999");
+                client.BaseAddress = new Uri("http://localhost:3958");
                 using var message = new HttpRequestMessage(HttpMethod.Get,
                     "/song/download/url/v1?id=" + body.Id + "&level=hires");
                 // 
@@ -240,7 +240,7 @@ internal static class MapProcessingEndpoints
                     {
                         dynamic info = JsonConvert.DeserializeObject(
                             await client.GetStringAsync(
-                                "http://localhost:5999/song/detail?ids=" + body.Id))!;
+                                "http://localhost:3958/song/detail?ids=" + body.Id))!;
                         return _handler!(new SubmitContext
                         {
                             File = "data:audio/flac;base64," +
@@ -288,6 +288,8 @@ internal static class MapProcessingEndpoints
                     continue;
 
                 case "NcmUrl":
+                    method.Invoke(null, [app]);
+                    break; 
                 case "Queue":
                     method.Invoke(null, [app, queue]);
                     continue;
