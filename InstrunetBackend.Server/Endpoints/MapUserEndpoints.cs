@@ -1,14 +1,17 @@
-using System.Reflection;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
+using InstrunetBackend.Server.InstrunetModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using System;
+using System.Reflection;
 
 namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapUserEndpoints
 {
-    public static WebApplication UserApi(this WebApplication app)
+    public static WebApplication MapUserApi(this WebApplication app)
     {
         app.MapGet("/userapi", (HttpContext context, string? uuid = null, bool getName = false) =>
         {
@@ -32,7 +35,7 @@ public static class MapUserEndpoints
 
             if (string.IsNullOrWhiteSpace(uuidSession))
             {
-                return Results.Unauthorized();
+                return Results.StatusCode(500);
             }
 
             if (!dbContext.Users.Any(i => i.Uuid == uuidSession))
@@ -47,7 +50,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication GetUploaded(this WebApplication app)
+    public static WebApplication MapGetUploaded(this WebApplication app)
     {
         app.MapGet("/getUploaded", (HttpContext context) =>
         {
@@ -66,7 +69,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication DeleteAccount(this WebApplication app)
+    public static WebApplication MapDeleteAccount(this WebApplication app)
     {
         app.MapDelete("/delAcc", (HttpContext context) =>
         {
@@ -87,7 +90,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication LogOut(this WebApplication app)
+    public static WebApplication MapLogOut(this WebApplication app)
     {
         app.MapGet("/logout", (HttpContext httpContext) =>
         {
@@ -97,7 +100,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication LogIn(this WebApplication app)
+    public static WebApplication MapLogIn(this WebApplication app)
     {
         app.MapPost("/login", ([FromBody] UserFormPayload form, HttpContext httpContext) =>
         {
@@ -119,7 +122,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication UploadAvatar(this WebApplication app)
+    public static WebApplication MapUploadAvatar(this WebApplication app)
     {
         app.MapPost("/uploadAvatar", (HttpContext context, [FromBody] AvatarUploadContextPayload form) =>
         {
@@ -143,7 +146,7 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication GetAvatar(this WebApplication app)
+    public static WebApplication MapGetAvatar(this WebApplication app)
     {
         app.MapGet("/avatar", (string uuid) =>
         {
@@ -159,12 +162,12 @@ public static class MapUserEndpoints
         return app;
     }
 
-    public static WebApplication DeleteOwnSong(this WebApplication app)
+    public static WebApplication MapDeleteOwnSong(this WebApplication app)
     {
         app.MapGet("/delSong", (string uuid, HttpContext context) =>
         {
             var sessionUuid = context.Session.GetString("uuid");
-            if (string.IsNullOrEmpty(sessionUuid))
+            if (string.IsNullOrWhiteSpace(sessionUuid))
             {
                 return Results.BadRequest();
             }
@@ -173,17 +176,40 @@ public static class MapUserEndpoints
             var entry = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == uuid);
             if (entry is null)
             {
-                return new NotFoundResult();
+                return Results.NotFound();
             }
 
             if (entry.User == sessionUuid)
             {
                 dbContext.InstrunetEntries.Where(i => i.Uuid == uuid).ExecuteDelete();
-                return new OkResult();
+                return Results.Ok();
             }
 
-            return BadRequest();
+            return Results.BadRequest();
         });
+        return app;
+    }
+    public static WebApplication MapRegister(this WebApplication app)
+    {
+        app.MapPost("register", ([FromBody] RegisterContextPayload payload, HttpContext httpContext) =>
+        {
+            using var dbContext = new InstrunetDbContext();
+            if(dbContext.Users.Any(i=>i.Username == payload.Username.Trim()))
+            {
+                return Results.BadRequest(); 
+            }
+            dbContext.Users.Add(new User
+            {
+                Uuid = Guid.NewGuid().ToString(),
+                Username = payload.Username.Trim(),
+                Password = payload.Password.Sha256HexHashString(),
+                Email = payload.Email,
+                Time = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()
+            });
+            dbContext.SaveChanges();
+            return Results.Ok();
+        }); 
+        return app;
     }
 
     public static WebApplication MapAllUserEndpoints(this WebApplication app)

@@ -20,4 +20,8 @@ internal static class InstrunetExtensions
         var binData = Convert.FromBase64String(base64Data);
         return binData;
     }
+    public static string ToPinyin(this string kanji)
+    {
+        return NPinyin.Pinyin.GetPinyin(kanji);
+    }
 }
