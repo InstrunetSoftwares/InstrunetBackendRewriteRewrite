@@ -7,3 +7,8 @@ riderModule.iml
 InstrunetBackend.Server/lib/**/*
 InstrunetBackend.Server/lib-runtime/**/*
 InstrunetBackend.Server/Certs/**/*
+.vs/
+.idea/
+flask_cache/
+/InstrunetBackend.Server/NcmSecret
+/InstrunetBackend.Server/config/config.json

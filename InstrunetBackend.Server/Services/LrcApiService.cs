@@ -11,7 +11,7 @@ public class LrcApiService
     public LrcApiService()
     {
         Console.WriteLine("Extracting LrcApi Libraries");
-        Directory.CreateDirectory(Program.LibraryCommon + "lrapi/");
+        Directory.CreateDirectory(Program.LibraryCommon + "lrcapi/");
         var assembly = Assembly.GetExecutingAssembly();
         Stream? stream = null;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -37,11 +37,11 @@ public class LrcApiService
         }
         var fStream = new FileStream (Program.LibraryCommon + (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "lrcapi/lrcapi.exe" : "lrcapi/lrcapi"), RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? new()
         {
-            Access = FileAccess.ReadWrite, Mode = FileMode.CreateNew
+            Access = FileAccess.ReadWrite, Mode = FileMode.Create
         } : new FileStreamOptions()
         {
             Access = FileAccess.ReadWrite,
-            Mode = FileMode.CreateNew, 
+            Mode = FileMode.Create, 
             UnixCreateMode = UnixFileMode.GroupExecute | UnixFileMode.OtherExecute | UnixFileMode.UserExecute
         });
         stream.CopyTo(fStream);
