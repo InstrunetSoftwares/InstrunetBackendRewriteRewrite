@@ -205,7 +205,10 @@ internal class Program
                     break;
             }
         };
-        var messages = File.Exists("./messages.json") ? JsonSerializer.Deserialize<List<MessageModel>>(File.ReadAllText("./messages.json")) ?? new List<MessageModel>() : new List<MessageModel>();
+        var messages = File.Exists("./messages.json") ? JsonSerializer.Deserialize<List<MessageModel>>(File.ReadAllText("./messages.json"), new JsonSerializerOptions()
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? new List<MessageModel>() : new List<MessageModel>();
         var sttQueue = new ObservableCollection<SttProcessContext>();
         sttQueue.CollectionChanged += (_, e) =>
         {

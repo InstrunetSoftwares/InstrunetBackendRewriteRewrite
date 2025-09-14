@@ -7,7 +7,7 @@ namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapJustTalkEndpoints
 {
-    public static RouteGroupBuilder LongPolling(this RouteGroupBuilder app, List<object> messages)
+    public static RouteGroupBuilder LongPolling(this RouteGroupBuilder app, List<MessageModel> messages)
     {
         app.MapGet("/JustTalkLongPolling", (long lastMessageTime, HttpContext httpContext) =>
         {
@@ -36,13 +36,13 @@ public static class MapJustTalkEndpoints
         return app;
     }
 
-    public static RouteGroupBuilder GetAll(this RouteGroupBuilder app, List<object> messages)
+    public static RouteGroupBuilder GetAll(this RouteGroupBuilder app, List<MessageModel> messages)
     {
         app.MapGet("/JustTalkGetAll", () => Results.Json(messages));
         return app;
     }
 
-    public static RouteGroupBuilder Submit(this RouteGroupBuilder app, List<object> messages)
+    public static RouteGroupBuilder Submit(this RouteGroupBuilder app, List<MessageModel> messages)
     {
         app.MapPost("/submit", ([FromBody] MessagePayload messagePayload) =>
         {
@@ -76,9 +76,9 @@ public static class MapJustTalkEndpoints
         return app; 
     }
 
-    public static WebApplication MapAllJustTalkEndpoints(this WebApplication app, List<object> messages)
+    public static WebApplication MapAllJustTalkEndpoints(this WebApplication app, List<MessageModel> messages)
     {
-        var justTalkApis = app.MapGroup("/api/v1/justTalkController");
+        var justTalkApis = app.MapGroup("/api/v1/justTalk");
         var methods = typeof(MapJustTalkEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var methodInfo in methods)
         {
