@@ -48,7 +48,11 @@ public class QueueContext : IDisposable
             DateTimeUploaded =
                 DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString().Length == entry.Epoch.ToString().Length
                     ? DateTimeOffset.FromUnixTimeMilliseconds(entry.Epoch).LocalDateTime
-                    : DateTimeOffset.FromUnixTimeSeconds(entry.Epoch).LocalDateTime
+                    : DateTimeOffset.FromUnixTimeSeconds(entry.Epoch).LocalDateTime,
+            AlbumCover = entry.Albumcover,
+            Email = entry.Email,
+            Link = entry.LinkTo,
+            UserUuid = entry.User
         };
     }
 }
