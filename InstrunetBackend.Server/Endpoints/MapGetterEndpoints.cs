@@ -231,7 +231,7 @@ public static class MapGetterEndpoints
 
     public static WebApplication Lyric(this WebApplication app)
     {
-        app.MapGet("/lyric", async ([FromBody] LyricReceiveContextPayload lyricReceiveContext) =>
+        app.MapPost("/lyric", async ([FromBody] LyricReceiveContextPayload lyricReceiveContext) =>
         {
             var client = new HttpClient();
             var resp = await client.GetAsync(
