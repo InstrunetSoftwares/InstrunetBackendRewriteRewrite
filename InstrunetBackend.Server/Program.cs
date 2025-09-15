@@ -1,4 +1,3 @@
-using Avalonia;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.Endpoints;
 using InstrunetBackend.Server.IndependantModels;
@@ -500,9 +499,6 @@ internal class Program
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
         app.Run();
-        
-
-        CleanupHandler!(null, EventArgs.Empty);
     }
 
 }

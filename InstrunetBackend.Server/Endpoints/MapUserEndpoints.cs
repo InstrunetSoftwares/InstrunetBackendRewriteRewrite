@@ -30,7 +30,7 @@ public static class MapUserEndpoints
                 }
 
                 var res = dbContext.Users.Where(i => i.Uuid == uuid).Select(i => i.Username).First();
-                return Results.Ok(res);
+                return Results.Text(res);
             }
 
             if (string.IsNullOrWhiteSpace(uuidSession))
@@ -60,7 +60,7 @@ public static class MapUserEndpoints
             }
 
             using var dbContext = new InstrunetDbContext();
-            return Results.Json(dbContext.InstrunetEntries.Where(i => i.User == context.Session.GetString("uuid"))
+            return Results.Json(dbContext.InstrunetEntries.Where(i => i.User == context.Session.GetString("uuid")).OrderBy(i=>i.SongName)
                 .Select(i => new
                 {
                     i.Uuid
@@ -151,7 +151,7 @@ public static class MapUserEndpoints
         app.MapGet("/avatar", (string uuid) =>
         {
             using var context = new InstrunetDbContext();
-            var arr = context.Users.Where(i => i.Uuid == uuid).Select(i => i.Avatar).First();
+            var arr = context.Users.Where(i => i.Uuid == uuid).Select(i => i.Avatar).FirstOrDefault();
             if (arr == null)
             {
                 return Results.NotFound();
