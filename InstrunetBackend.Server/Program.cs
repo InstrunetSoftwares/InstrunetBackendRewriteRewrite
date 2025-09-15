@@ -24,9 +24,10 @@ internal class Program
     public static string CWebP = LibraryCommon + "cwebp/";
     public static string UM = LibraryCommon + "unlock-music/";
 
-    private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>, List<MessageModel>) Initialize()
+    [STAThread]
+    private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>, List<MessageModel>)
+        Initialize()
     {
-
         var queue = new ObservableCollection<QueueContext>();
         queue.CollectionChanged += (_, e) =>
         {
@@ -35,139 +36,139 @@ internal class Program
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
                     Task t = new Task(() =>
-                    {
-                        if (!newItem.CancellationToken.IsCancellationRequested)
                         {
-                            if (newItem.File.Length == 0)
+                            if (!newItem.CancellationToken.IsCancellationRequested)
                             {
-                                return;
-                            }
-
-                            var modelName = "";
-                            switch (newItem.Kind)
-                            {
-                                case 0:
-                                    modelName = "UVR-MDX-NET-Inst_HQ_4.onnx";
-                                    break;
-                                case 1:
-                                    modelName = "UVR_MDXNET_KARA_2.onnx";
-                                    break;
-                                case 2:
-                                    modelName = "UVR_MDXNET_KARA.onnx";
-                                    break;
-                                case 3:
-                                    modelName = "kuielab_a_bass.onnx";
-                                    break;
-                                case 4:
-                                    // Drums
-                                    modelName = "htdemucs_ft.yaml";
-                                    break;
-                                case 5:
-                                    modelName = "UVR_MDXNET_Main.onnx";
-                                    break;
-                                case 6:
-                                    modelName = "htdemucs_6s.yaml";
-                                    break;
-                            }
-
-                            // Write file to disk. 
-                            Directory.CreateDirectory("./tmp/instrunet/pre-process");
-                            var fileStream =
-                                File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                            fileStream.Write(newItem.File, 0, newItem.File.Length);
-                            fileStream.Dispose();
-
-                            var p = new Process();
-                            p.StartInfo.FileName = "audio-separator";
-                            p.StartInfo.WorkingDirectory =
-                                Directory.GetCurrentDirectory();
-                            p.StartInfo.Arguments = newItem.Kind == 6
-                                ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem guitar"
-                                : newItem.Kind == 4
-                                    ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem drums"
-                                    : $"./tmp/instrunet/pre-process/{newItem.Uuid} --model_filename {modelName} --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir ./tmp/instrunet/post-process";
-                            p.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
-                            p.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
-                            p.Start();
-                            while (!p.HasExited)
-                            {
-                                if (newItem.CancellationToken.IsCancellationRequested)
+                                if (newItem.File.Length == 0)
                                 {
-                                    p.Kill();
-                                    p.Dispose();
-                                    Console.WriteLine("Cancelled");
                                     return;
                                 }
 
-                                Task.Delay(500).GetAwaiter().GetResult();
-                            }
-
-                            File.Delete($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                            if (p.ExitCode != 0)
-                            {
-                                p.Dispose();
-                                return;
-                            }
-
-                            p.Dispose();
-                            var fileName = "";
-                            switch (newItem.Kind)
-                            {
-                                case 0:
-                                    fileName = $"{newItem.Uuid}_(Instrumental)_UVR-MDX-NET-Inst_HQ_4.mp3";
-                                    break;
-                                case 1:
-                                    fileName = $"{newItem.Uuid}_(Instrumental)_UVR_MDXNET_KARA_2.mp3";
-                                    break;
-                                case 2:
-                                    fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_KARA.mp3";
-                                    break;
-                                case 3:
-                                    fileName = $"{newItem.Uuid}_(Bass)_kuielab_a_bass.mp3";
-                                    break;
-                                case 4:
-                                    fileName = $"{newItem.Uuid}_(Drums)_htdemucs_ft.mp3";
-                                    break;
-                                case 5:
-
-                                    fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_Main.mp3";
-                                    break;
-                                case 6:
-                                    fileName = $"{newItem.Uuid}_(Guitar)_htdemucs_6s.mp3";
-                                    break;
-                            }
-
-                            var processedFileStream = File.OpenRead($"./tmp/instrunet/post-process/{fileName}");
-                            var ms = new MemoryStream();
-                            processedFileStream.CopyTo(ms);
-                            processedFileStream.Dispose();
-
-                            try
-                            {
-                                using var dbContext = new InstrunetDbContext();
-                                dbContext.InstrunetEntries.Add(new()
+                                var modelName = "";
+                                switch (newItem.Kind)
                                 {
-                                    Uuid = newItem.Uuid,
-                                    SongName = newItem.Name,
-                                    AlbumName = newItem.AlbumName,
-                                    LinkTo = newItem.Link ?? "",
-                                    Email = newItem.Email,
-                                    Albumcover = newItem.AlbumCover,
-                                    Artist = newItem.Artist,
-                                    Databinary = ms.ToArray(),
-                                    Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds(),
-                                    Kind = newItem.Kind,
-                                    User = newItem.UserUuid
-                                });
-                                dbContext.SaveChanges();
-                                ms.Dispose();
+                                    case 0:
+                                        modelName = "UVR-MDX-NET-Inst_HQ_4.onnx";
+                                        break;
+                                    case 1:
+                                        modelName = "UVR_MDXNET_KARA_2.onnx";
+                                        break;
+                                    case 2:
+                                        modelName = "UVR_MDXNET_KARA.onnx";
+                                        break;
+                                    case 3:
+                                        modelName = "kuielab_a_bass.onnx";
+                                        break;
+                                    case 4:
+                                        // Drums
+                                        modelName = "htdemucs_ft.yaml";
+                                        break;
+                                    case 5:
+                                        modelName = "UVR_MDXNET_Main.onnx";
+                                        break;
+                                    case 6:
+                                        modelName = "htdemucs_6s.yaml";
+                                        break;
+                                }
+
+                                // Write file to disk. 
+                                Directory.CreateDirectory("./tmp/instrunet/pre-process");
+                                var fileStream =
+                                    File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
+                                fileStream.Write(newItem.File, 0, newItem.File.Length);
+                                fileStream.Dispose();
+
+                                var p = new Process();
+                                p.StartInfo.FileName = "audio-separator";
+                                p.StartInfo.WorkingDirectory =
+                                    Directory.GetCurrentDirectory();
+                                p.StartInfo.Arguments = newItem.Kind == 6
+                                    ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem guitar"
+                                    : newItem.Kind == 4
+                                        ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem drums"
+                                        : $"./tmp/instrunet/pre-process/{newItem.Uuid} --model_filename {modelName} --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir ./tmp/instrunet/post-process";
+                                p.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
+                                p.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
+                                p.Start();
+                                while (!p.HasExited)
+                                {
+                                    if (newItem.CancellationToken.IsCancellationRequested)
+                                    {
+                                        p.Kill();
+                                        p.Dispose();
+                                        Console.WriteLine("Cancelled");
+                                        return;
+                                    }
+
+                                    Task.Delay(500).GetAwaiter().GetResult();
+                                }
+
+                                File.Delete($"./tmp/instrunet/pre-process/{newItem.Uuid}");
+                                if (p.ExitCode != 0)
+                                {
+                                    p.Dispose();
+                                    return;
+                                }
+
+                                p.Dispose();
+                                var fileName = "";
+                                switch (newItem.Kind)
+                                {
+                                    case 0:
+                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR-MDX-NET-Inst_HQ_4.mp3";
+                                        break;
+                                    case 1:
+                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR_MDXNET_KARA_2.mp3";
+                                        break;
+                                    case 2:
+                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_KARA.mp3";
+                                        break;
+                                    case 3:
+                                        fileName = $"{newItem.Uuid}_(Bass)_kuielab_a_bass.mp3";
+                                        break;
+                                    case 4:
+                                        fileName = $"{newItem.Uuid}_(Drums)_htdemucs_ft.mp3";
+                                        break;
+                                    case 5:
+
+                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_Main.mp3";
+                                        break;
+                                    case 6:
+                                        fileName = $"{newItem.Uuid}_(Guitar)_htdemucs_6s.mp3";
+                                        break;
+                                }
+
+                                var processedFileStream = File.OpenRead($"./tmp/instrunet/post-process/{fileName}");
+                                var ms = new MemoryStream();
+                                processedFileStream.CopyTo(ms);
+                                processedFileStream.Dispose();
+
+                                try
+                                {
+                                    using var dbContext = new InstrunetDbContext();
+                                    dbContext.InstrunetEntries.Add(new()
+                                    {
+                                        Uuid = newItem.Uuid,
+                                        SongName = newItem.Name,
+                                        AlbumName = newItem.AlbumName,
+                                        LinkTo = newItem.Link ?? "",
+                                        Email = newItem.Email,
+                                        Albumcover = newItem.AlbumCover,
+                                        Artist = newItem.Artist,
+                                        Databinary = ms.ToArray(),
+                                        Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds(),
+                                        Kind = newItem.Kind,
+                                        User = newItem.UserUuid
+                                    });
+                                    dbContext.SaveChanges();
+                                    ms.Dispose();
+                                }
+                                catch (DbUpdateException dbUpdateException)
+                                {
+                                    Console.WriteLine(dbUpdateException.Message);
+                                }
                             }
-                            catch (DbUpdateException dbUpdateException)
-                            {
-                                Console.WriteLine(dbUpdateException.Message);
-                            }
-                        }
-                    },
+                        },
                         newItem.CancellationToken.Token);
                     t.ContinueWith((iT) =>
                     {
@@ -185,9 +186,9 @@ internal class Program
                     {
                         queue[0].ProcessTask.Start();
                     }
-
                     break;
                 case NotifyCollectionChangedAction.Remove:
+                    
                     if (e.OldItems != null)
                     {
                         foreach (var eOldItem in e.OldItems)
@@ -205,10 +206,13 @@ internal class Program
                     break;
             }
         };
-        var messages = File.Exists("./messages.json") ? JsonSerializer.Deserialize<List<MessageModel>>(File.ReadAllText("./messages.json"), new JsonSerializerOptions()
-        {
-            PropertyNameCaseInsensitive = true
-        }) ?? new List<MessageModel>() : new List<MessageModel>();
+        var messages = File.Exists("./messages.json")
+            ? JsonSerializer.Deserialize<List<MessageModel>>(File.ReadAllText("./messages.json"),
+                new JsonSerializerOptions()
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<MessageModel>()
+            : new List<MessageModel>();
         var sttQueue = new ObservableCollection<SttProcessContext>();
         sttQueue.CollectionChanged += (_, e) =>
         {
@@ -226,15 +230,15 @@ internal class Program
                         File.WriteAllBytes(inputDir + $"/{newItem.Uuid}", newItem.File);
 
                         var arg = $"args=../{newItem.Uuid} --model turbo " + new Func<string>(() =>
-                        newItem.Language == LanguageType.Automatic
-                            ? ""
-                            : $"--language {newItem.Language.ToString()}")() + (newItem.CompleteSentence
-                        ? " --initial_prompt \"Keep sentences' integrity. Don't cut the sentence off when it's not finished.\""
-                        : "");
+                            newItem.Language == LanguageType.Automatic
+                                ? ""
+                                : $"--language {newItem.Language.ToString()}")() + (newItem.CompleteSentence
+                            ? " --initial_prompt \"Keep sentences' integrity. Don't cut the sentence off when it's not finished.\""
+                            : "");
                         var p = new Process();
                         p.StartInfo.FileName = OperatingSystem.IsWindows()
-                                ? "C:\\ProgramData\\miniconda3\\envs\\whisper\\Scripts\\whisper.exe"
-                                : "/Users/dt/anaconda3/envs/whisper/bin/whisper";
+                            ? "C:\\ProgramData\\miniconda3\\envs\\whisper\\Scripts\\whisper.exe"
+                            : "/Users/dt/anaconda3/envs/whisper/bin/whisper";
                         p.StartInfo.WorkingDirectory = outputDir;
                         p.StartInfo.Arguments = arg;
                         p.Start();
@@ -248,8 +252,10 @@ internal class Program
                                 Directory.Delete(outputDir, true);
                                 return;
                             }
+
                             Task.Delay(500).GetAwaiter().GetResult();
                         }
+
                         p.Dispose();
                         TarFile.CreateFromDirectory(outputDir, $"{outputDir}/{newItem.Uuid}.tar", false);
                         using var smtp = new SmtpClient("smtp.qq.com", 587);
@@ -262,7 +268,8 @@ internal class Program
                             Subject = "转文本完成",
                             Attachments =
                             {
-                                new(new MemoryStream(System.IO.File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")), "结果.tar",
+                                new(new MemoryStream(System.IO.File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")),
+                                    "结果.tar",
                                     "application/x-zip-compressed"),
                             },
                             Body = "见附件",
@@ -286,10 +293,6 @@ internal class Program
                             Directory.Delete(inputDir, true);
                             Directory.Delete(outputDir, true);
                         }
-
-
-
-
                     });
                     t.ContinueWith((iT) =>
                     {
@@ -307,6 +310,7 @@ internal class Program
                     {
                         sttQueue[0].ProcessTask.Start();
                     }
+
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     if (e.OldItems != null)
@@ -316,11 +320,13 @@ internal class Program
                             ((SttProcessContext)eOldItem).Dispose();
                         }
                     }
+
                     GC.Collect();
                     if (sttQueue.Count >= 1)
                     {
                         sttQueue[0].ProcessTask.Start();
                     }
+
                     break;
             }
         };
@@ -349,7 +355,7 @@ internal class Program
             cWebp?.Dispose();
             GC.Collect();
         }
-        
+
         if (OperatingSystem.IsWindows())
         {
             Stream? UMStream = null;
@@ -358,14 +364,15 @@ internal class Program
             {
                 Directory.CreateDirectory(UM);
                 var executingAssembly = Assembly.GetExecutingAssembly();
-                UMStream = executingAssembly.GetManifestResourceStream("InstrunetBackend.Server.lib.unlock_music.um.exe");
+                UMStream = executingAssembly.GetManifestResourceStream(
+                    "InstrunetBackend.Server.lib.unlock_music.um.exe");
                 if (UMStream == null)
                 {
                     throw new NullReferenceException("Unlock-music stream is null. ");
                 }
+
                 fStream = new FileStream(UM + "um.exe", FileMode.Create);
                 UMStream?.CopyTo(fStream);
-
             }
             catch (NullReferenceException)
             {
@@ -374,7 +381,6 @@ internal class Program
             catch (Exception)
             {
                 Console.WriteLine("Unknown error while extracting unlock-music library. Skipping...");
-
             }
             finally
             {
@@ -393,8 +399,9 @@ internal class Program
             {
                 ((ConsoleCancelEventArgs)e).Cancel = true;
             }
+
             Console.WriteLine("Cleaning up...");
-            File.WriteAllText("./messages.json", JsonSerializer.Serialize(messages)); 
+            File.WriteAllText("./messages.json", JsonSerializer.Serialize(messages));
             netEaseService.Process?.Kill();
             netEaseService.Process?.Dispose();
             lrcApiService.Process?.Kill();
@@ -402,7 +409,7 @@ internal class Program
         }
 
         Console.CancelKeyPress += exitHandler;
-        return (queue, sttQueue, messages); 
+        return (queue, sttQueue, messages);
     }
 
     public static void Main(string[] args)
@@ -460,11 +467,10 @@ internal class Program
 
         app.UseSession();
 
-        
 
         // Datas
         var cache = new List<QueueContext>();
-        
+
 
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
@@ -478,6 +484,6 @@ internal class Program
         app.MapGet("/ping", () => Results.Ok("Pong"));
 
         Console.WriteLine(Environment.OSVersion.Platform);
-        app.Run();
+        app.RunAsync();
     }
 }
