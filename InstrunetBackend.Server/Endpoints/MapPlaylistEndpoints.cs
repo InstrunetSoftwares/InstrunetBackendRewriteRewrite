@@ -71,16 +71,20 @@ namespace InstrunetBackend.Server.Endpoints
             {
                 using var context = new InstrunetDbContext();
                 var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Title).FirstOrDefault();
-                return Results.Ok(res ?? null);
+                return Results.Text(res ?? null);
             });
             return app;
         }
         public static WebApplication MapGetPlaylistThumbnail(this WebApplication app)
         {
-            app.MapGet("/playlist-tmb", (string playlistUuid) =>
+            app.MapGet("/playlist-tmb", (string playlistUuid, bool asFile = false) =>
             {
                 using var context = new InstrunetDbContext();
                 var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Tmb).FirstOrDefault();
+                if (asFile)
+                {
+                    return Results.File(res ?? [], contentType: "image/webp", enableRangeProcessing: true);
+                }
                 var arr = res?.Select(b => (int)b).ToArray();
 
                 return Results.Json(new
@@ -127,50 +131,33 @@ namespace InstrunetBackend.Server.Endpoints
                             }
                         }
                         var builder = LibraryHelper.CreateWebPEncoderBuilder();
-
+                        MemoryStream? outputStream = null;
                         if (builder is null)
                         {
                             goto skip_compression;
                         }
                         var encoder = builder.CompressionConfig(x => x.Lossless(y => y.Quality(80))).Build();
-                        var inputStream = new MemoryStream();
+                        var inputStream = new MemoryStream(thumbBytes.ToArray());
+                       
+
+
+                       
 
                         try
                         {
-                            foreach (int byteInt in uploadContent.TmbInstance.Data)
-                            {
-                                inputStream.WriteByte((byte)byteInt);
-
-                            }
-                        }
-                        catch (OverflowException ex)
-                        {
-                            Console.WriteLine(ex);
-
-                            return Results.BadRequest("Invalid thumbnail data: " + ex);
-                        }
-                        finally
-                        {
-                            inputStream.Dispose();
-                        }
-
-                        var outputStream = new MemoryStream();
-                        try
-                        {
+                            outputStream = new MemoryStream();
                             encoder.Encode(inputStream, outputStream);
                             thumbBytes = outputStream.ToArray().ToList();
-
+                            inputStream.Dispose();
                         }
                         catch (Exception ex)
                         {
                             Console.WriteLine(ex);
+                            outputStream?.Dispose();
+                            inputStream.Dispose();
                             return Results.BadRequest("Unknown error: " + ex.Message);
                         }
-                        finally
-                        {
-                            inputStream.Dispose();
-                            outputStream.Dispose();
-                        }
+                      
 
 
 
@@ -188,6 +175,7 @@ namespace InstrunetBackend.Server.Endpoints
                             Tmb = thumbBytes.ToArray()
                         });
                         context.SaveChanges();
+                        outputStream?.Dispose();
                         return Results.Json(JsonSerializer.Serialize(new
                         {
                             UUID = uuid
@@ -222,7 +210,8 @@ namespace InstrunetBackend.Server.Endpoints
                     {
                         return Results.Unauthorized();
                     }
-
+                    MemoryStream? inputStream = null;
+                    MemoryStream? outputStream = null; 
                     string uuid = Guid.NewGuid().ToString();
                     if (uploadContent.TmbInstance?.Data != null)
                     {
@@ -245,25 +234,8 @@ namespace InstrunetBackend.Server.Endpoints
                             goto skip_compression;
                         }
                         var encoder = builder.CompressionConfig(x => x.Lossless(y => y.Quality(80))).Build();
-                        var inputStream = new MemoryStream();
-                        try
-                        {
-                            foreach (int byteInt in uploadContent.TmbInstance.Data)
-                            {
-                                inputStream.WriteByte((byte)byteInt);
-                            }
-                        }
-                        catch (OverflowException ex)
-                        {
-                            Console.WriteLine(ex);
-                            return Results.BadRequest("Invalid thumbnail data: " + ex.Message);
-                        }
-                        finally
-                        {
-                            inputStream.Dispose();
-                        }
-
-                        var outputStream = new MemoryStream();
+                         inputStream = new MemoryStream(encodeOutputBytes.ToArray());
+                         outputStream = new MemoryStream();
                         try
                         {
                             encoder.Encode(inputStream, outputStream);
@@ -289,6 +261,7 @@ namespace InstrunetBackend.Server.Endpoints
                                 .SetProperty(i => i.Private, uploadContent.Private)
                                 .SetProperty(i => i.Tmb, encodeOutputBytes.ToArray())
                                 .SetProperty(i => i.Title, uploadContent.Title));
+                        inputStream?.Dispose(); outputStream?.Dispose();
                         return Results.Ok();
                     }
 
