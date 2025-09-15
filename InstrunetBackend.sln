@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11010.61
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstrunetBackend.Server", "InstrunetBackend.Server\InstrunetBackend.Server.csproj", "{1177E87C-BB0C-4861-BA0A-065AA034B7F7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstrunetTestProject", "InstrunetTestProject\InstrunetTestProject.csproj", "{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}"
@@ -18,5 +21,11 @@ Global
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C3483C63-E6D6-4017-A17C-A49B0CB6B0E1}
 	EndGlobalSection
 EndGlobal

@@ -1,3 +1,4 @@
+using Avalonia;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.Endpoints;
 using InstrunetBackend.Server.IndependantModels;
@@ -14,7 +15,6 @@ using System.Net.Mail;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using static InstrunetBackend.Server.IndependantModels.HttpPayload.SttUploadPayload;
 
 namespace InstrunetBackend.Server;
 
@@ -23,8 +23,19 @@ internal class Program
     public static readonly string LibraryCommon = "./lib-runtime/";
     public static string CWebP = LibraryCommon + "cwebp/";
     public static string UM = LibraryCommon + "unlock-music/";
+    public static Action<object?, EventArgs>? CleanupHandler
+    {
+        get
+        {
+            while (field is null)
+            {
+                Task.Delay(20).GetAwaiter().GetResult();
+            }
+            return field;
+        }
+        set;
+    }
 
-    [STAThread]
     private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>, List<MessageModel>)
         Initialize()
     {
@@ -188,7 +199,7 @@ internal class Program
                     }
                     break;
                 case NotifyCollectionChangedAction.Remove:
-                    
+
                     if (e.OldItems != null)
                     {
                         foreach (var eOldItem in e.OldItems)
@@ -393,7 +404,7 @@ internal class Program
             Console.WriteLine("Music unlock is only available in Windows. Skipping...");
         }
 
-        void exitHandler(dynamic? _, object e)
+        CleanupHandler = (_, e) =>
         {
             if (e is ConsoleCancelEventArgs)
             {
@@ -402,13 +413,19 @@ internal class Program
 
             Console.WriteLine("Cleaning up...");
             File.WriteAllText("./messages.json", JsonSerializer.Serialize(messages));
-            netEaseService.Process?.Kill();
+            netEaseService.Process?.Kill(true);
             netEaseService.Process?.Dispose();
-            lrcApiService.Process?.Kill();
+            Console.WriteLine("NCM Process killed. ");
+            lrcApiService.Process?.Kill(true);
             lrcApiService.Process?.Dispose();
-        }
+            Console.WriteLine("LrcApi Process killed. ");
+            Console.WriteLine("Cleanup done. ");
+        };
 
-        Console.CancelKeyPress += exitHandler;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            CleanupHandler(_, e);
+        };
         return (queue, sttQueue, messages);
     }
 
@@ -482,8 +499,10 @@ internal class Program
 
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
+        app.Run();
+        
 
-        Console.WriteLine(Environment.OSVersion.Platform);
-        app.RunAsync();
+        CleanupHandler!(null, EventArgs.Empty);
     }
+
 }

@@ -15,7 +15,8 @@ namespace InstrunetBackend.Server.Endpoints
     {
         public static WebApplication MapGetPlaylistOwned(this WebApplication app)
         {
-            app.MapPost("playlist-owned", (HttpContext httpContext) =>
+            
+            app.MapPost("playlist-owned", (HttpContext httpContext, bool thumbnail = true) =>
             {
                 var uuidSession = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrEmpty(uuidSession))
@@ -33,11 +34,11 @@ namespace InstrunetBackend.Server.Endpoints
                         owner = obj.Owner,
                         @private = obj.Private,
                         title = obj.Title,
-                        tmb = new
+                        tmb = thumbnail ? new
                         {
                             type = "Buffer",
                             data = obj.Tmb?.Select(b => (int)b).ToArray()
-                        },
+                        } : null,
                         uuid = obj.Uuid,
                         content = JsonSerializer.Deserialize<string[]>(obj.Content)
                     });
