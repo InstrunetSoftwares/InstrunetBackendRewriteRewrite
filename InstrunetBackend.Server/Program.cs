@@ -230,6 +230,7 @@ internal class Program
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (SttProcessContext)e.NewItems![0]!;
+                    // not done. 
                     Task t = new Task(() =>
                     {
                         var inputDir = "./tmp/stt/input";
@@ -239,7 +240,7 @@ internal class Program
 
                         File.WriteAllBytes(inputDir + $"/{newItem.Uuid}", newItem.File);
 
-                        var arg = $"args=../{newItem.Uuid} --model turbo " + new Func<string>(() =>
+                        var arg = $"args={inputDir}/{newItem.Uuid} --model turbo " + new Func<string>(() =>
                             newItem.Language == LanguageType.Automatic
                                 ? ""
                                 : $"--language {newItem.Language.ToString()}")() + (newItem.CompleteSentence
