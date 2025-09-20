@@ -233,14 +233,15 @@ internal class Program
                     // not done. 
                     Task t = new Task(() =>
                     {
-                        var inputDir = "./tmp/stt/input";
-                        var outputDir = "./tmp/stt/output";
+                        var inputDir = Path.Join(Environment.CurrentDirectory, "/tmp/stt/input");
+                        var outputDir = Path.Join(Environment.CurrentDirectory, "/tmp/stt/output");
                         Directory.CreateDirectory(inputDir);
                         Directory.CreateDirectory(outputDir);
 
-                        File.WriteAllBytes(inputDir + $"/{newItem.Uuid}", newItem.File);
+                        var inputFile = Path.Join(inputDir, $"/{newItem.Uuid}");
+                        File.WriteAllBytes(inputFile, newItem.File);
 
-                        var arg = $"args={inputDir}/{newItem.Uuid} --model turbo " + new Func<string>(() =>
+                        var arg = $"args={inputFile} --model turbo " + new Func<string>(() =>
                             newItem.Language == LanguageType.Automatic
                                 ? ""
                                 : $"--language {newItem.Language.ToString()}")() + (newItem.CompleteSentence
@@ -279,7 +280,7 @@ internal class Program
                             Subject = "转文本完成",
                             Attachments =
                             {
-                                new(new MemoryStream(System.IO.File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")),
+                                new(new MemoryStream(File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")),
                                     "结果.tar",
                                     "application/x-zip-compressed"),
                             },
@@ -488,6 +489,14 @@ internal class Program
         // Datas
         var cache = new List<QueueContext>();
 
+        Task.Run(() =>
+        {
+            while (true)
+            {
+                cache.Clear();
+                Task.Delay(60 * 60 * 24).GetAwaiter().GetResult();
+            }
+        }); 
 
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
