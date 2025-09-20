@@ -24,4 +24,10 @@ internal static class InstrunetExtensions
     {
         return NPinyin.Pinyin.GetPinyin(kanji);
     }
+
+    // Bruh. 
+    public static void PrintLn(this string s)
+    {
+        Console.WriteLine(s);
+    }
 }
