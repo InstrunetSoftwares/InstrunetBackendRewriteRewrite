@@ -4,6 +4,7 @@ using InstrunetBackend.Server.InstrunetModels;
 using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Text.Json;
@@ -58,9 +59,9 @@ namespace InstrunetBackend.Server.Endpoints
                 using var context = new InstrunetDbContext();
                 var arr = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => new
                 {
-                    OwnerName = context.Users.Where(u=>u.Uuid == i.Owner).Select(i=>i.Username).AsEnumerable().FirstOrDefault() ?? "DELETED USER",
-                    i.Owner, 
-                    i.Title, 
+                    OwnerName = context.Users.Where(u => u.Uuid == i.Owner).Select(i => i.Username).AsEnumerable().FirstOrDefault() ?? "DELETED USER",
+                    i.Owner,
+                    i.Title,
                     playlistuuid = i.Uuid,
                     content = JsonSerializer.Deserialize<string[]>(i.Content, JsonSerializerOptions.Default),
                     i.Private
@@ -132,11 +133,55 @@ namespace InstrunetBackend.Server.Endpoints
                             .SetProperty(i => i.Title, uploadContent.Title)
                             .SetProperty(i => i.Private, uploadContent.Private)
                     );
-                    return Results.Ok(); 
+                    return Results.Ok();
                 }
                 catch (Exception)
                 {
-                    return Results.InternalServerError(); 
+                    return Results.InternalServerError();
+                }
+            });
+            app.MapPost("/upload-playlist-thumbnail", ([FromBody] PlaylistUploadThumbnailContext uploadContext, HttpContext httpContext) =>
+            {
+                var userUuid = httpContext.Session.GetString("uuid");
+                if (string.IsNullOrWhiteSpace(userUuid))
+                {
+                    return Results.Unauthorized();
+                }
+                byte[] buffer; 
+                try
+                {
+                    buffer = uploadContext.DataUri.DataUrlToByteArray();
+
+                }
+                catch (Exception)
+                {
+                    return Results.BadRequest("文件不支持或不合法"); 
+                }
+                #region compression
+                var builder = LibraryHelper.CreateWebPEncoderBuilder();
+                if (builder is not null)
+                {
+                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                    using var input = new MemoryStream(buffer);
+                    using var output = new MemoryStream();
+                    encoder.Encode(input, output);
+                    buffer = output.ToArray(); 
+                }
+               
+
+
+                #endregion
+                using var context = new InstrunetDbContext();
+                try
+                {
+                    context.Playlists.Where(i => i.Uuid == uploadContext.PlaylistUuid).ExecuteUpdate(setters =>
+                        setters.SetProperty(i => i.Tmb, buffer)
+                    );
+                    return Results.Ok();
+                }
+                catch (Exception)
+                {
+                    return Results.InternalServerError();
                 }
             });
             return app;
