@@ -1,2 +1,5 @@
 # Instrunet Backend Rewrite^2
-Bitch ass I knew this woulda come
+
+Welly optimized, sort of. 
+
+Does not compatible to master. 

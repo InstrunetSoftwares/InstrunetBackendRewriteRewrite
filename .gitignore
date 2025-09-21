@@ -12,3 +12,5 @@ InstrunetBackend.Server/Certs/**/*
 flask_cache/
 /InstrunetBackend.Server/NcmSecret
 /InstrunetBackend.Server/config/config.json
+/InstrunetBackend.Server/messages.json
+**/.DS_Store
