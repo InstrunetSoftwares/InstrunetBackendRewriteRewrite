@@ -108,7 +108,7 @@ public static class MapGetterEndpoints
             }
 
             using var context = new InstrunetDbContext();
-            if (context.InstrunetEntries.Count(i => i.Uuid == id) == 0)
+            if (!context.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 return Results.BadRequest();
             }
