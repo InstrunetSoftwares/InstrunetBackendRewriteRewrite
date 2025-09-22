@@ -81,6 +81,7 @@ public static class MapGetterEndpoints
             {
                 var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
                 cache.Add(entry);
+                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
                 return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true);
             }
