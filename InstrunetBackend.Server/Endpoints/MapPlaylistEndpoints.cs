@@ -184,6 +184,23 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.InternalServerError();
                 }
             });
+            app.MapGet("/create-playlist", (HttpContext httpContext) =>
+            {
+                var user = httpContext.Session.GetString("uuid");
+                if (string.IsNullOrWhiteSpace(user))
+                {
+                    return Results.Unauthorized(); 
+                }
+
+                using var context = new InstrunetDbContext();
+                var uuid = Guid.NewGuid().ToString(); 
+                context.Playlists.Add(new()
+                {
+                    Uuid = uuid, Content = "[]", Owner = user, Private = false, Title = null, Tmb = null 
+                });
+                context.SaveChanges(); 
+                return Results.Text(uuid); 
+            }); 
             return app;
         }
 
