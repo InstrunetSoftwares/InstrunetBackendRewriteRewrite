@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
+using FFMpegCore;
+using FFMpegCore.Pipes;
 using NAudio.Lame;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -62,39 +64,36 @@ namespace InstrunetBackend.Server.lib
                     Console.WriteLine("No cwebp for you. ");
                     break;
             }
-            return builder; 
+            return builder;
         }
         public static MemoryStream ToPitched(this Stream file, double pitch)
         {
             using var reader = new Mp3FileReaderBase(file, wf => new Mp3FrameDecompressor(wf));
             var p = new SmbPitchShiftingSampleProvider(reader.ToSampleProvider());
-            
-            p.PitchFactor = (float)Math.Pow(Math.Pow(2, 1.0 / 12), pitch*2);
-                
-            
-            
-            using var memoryStream = new MemoryStream(); 
+
+            p.PitchFactor = (float)Math.Pow(Math.Pow(2, 1.0 / 12), pitch * 2);
+
+
+
+            using var memoryStream = new MemoryStream();
             using var wave = new WaveFileWriter(memoryStream, p.WaveFormat);
-            
+
             float[] buffer = new float[1024];
             int read;
             while ((read = p.Read(buffer, 0, buffer.Length)) > 0)
             {
                 wave.WriteSamples(buffer, 0, read);
             }
-
-            using var mp3MStream = new MemoryStream();
-            using var writer = new LameMP3FileWriter(mp3MStream, wave.WaveFormat, LAMEPreset.VBR_100); 
-            wave.CopyTo(writer);
-            var result = new MemoryStream(); 
-            writer.CopyTo(result);
-            return result; 
+            memoryStream.Position = 0;
+            var outputMp3Stream = new MemoryStream();
+            FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), o => o.WithAudioCodec("pcm_f32le")).OutputToPipe(new StreamPipeSink(outputMp3Stream), o => o.WithAudioCodec("mp3").ForceFormat("mp3")).NotifyOnError(i => Console.WriteLine(i)).NotifyOnOutput(Console.WriteLine).WithLogLevel(FFMpegCore.Enums.FFMpegLogLevel.Debug).ProcessSynchronously();
+            return outputMp3Stream;
         }
 
         public static MemoryStream ToPitched(this byte[] file, double pitch)
         {
-            var mStream = new MemoryStream(file); 
-            var mStreamProcessed = ToPitched(mStream, pitch); 
+            var mStream = new MemoryStream(file);
+            var mStreamProcessed = ToPitched(mStream, pitch);
             mStream.Dispose();
             return mStreamProcessed;
         }

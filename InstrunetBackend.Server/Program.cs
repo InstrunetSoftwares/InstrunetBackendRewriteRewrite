@@ -277,14 +277,14 @@ internal class Program
                         var mailMessage = new MailMessage
                         {
                             From = new MailAddress("xiey0@qq.com"),
-                            Subject = "×ªÎÄ±¾Íê³É",
+                            Subject = "è½¬æ–‡æœ¬å®Œæˆ",
                             Attachments =
                             {
                                 new(new MemoryStream(File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")),
-                                    "½á¹û.tar",
+                                    "ç»“æœ.tar",
                                     "application/x-zip-compressed"),
                             },
-                            Body = "¼û¸½¼ş",
+                            Body = "è§é™„ä»¶",
                             IsBodyHtml = true
                         };
                         mailMessage.To.Add(new MailAddress(newItem.Email));
@@ -446,6 +446,8 @@ internal class Program
                     .WithHeaders("Content-Type").AllowCredentials();
             });
         });
+        builder.Services.AddSwaggerGen(); 
+
 
         // Required for session storage. 
         builder.Services.AddDistributedMemoryCache();
@@ -472,6 +474,8 @@ internal class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.UseSwagger();
+            app.UseSwaggerUI(); 
         }
 
         if (!app.Environment.IsDevelopment())
