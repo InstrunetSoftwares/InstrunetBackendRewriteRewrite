@@ -14,7 +14,10 @@
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
           <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="NAudio.Core" Version="2.2.1" />
+        <PackageReference Include="NAudio.Lame" Version="2.1.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
         <PackageReference Include="NPinyin.Core" Version="2.1.3" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
         <PackageReference Include="SharpZipLib" Version="1.4.2" />

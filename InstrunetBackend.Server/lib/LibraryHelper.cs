@@ -1,5 +1,9 @@
 ﻿using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
+using NAudio.Lame;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
+using NLayer.NAudioSupport;
 using WebPWrapper.Encoder;
 
 namespace InstrunetBackend.Server.lib
@@ -59,6 +63,40 @@ namespace InstrunetBackend.Server.lib
                     break;
             }
             return builder; 
+        }
+        public static MemoryStream ToPitched(this Stream file, double pitch)
+        {
+            using var reader = new Mp3FileReaderBase(file, wf => new Mp3FrameDecompressor(wf));
+            var p = new SmbPitchShiftingSampleProvider(reader.ToSampleProvider());
+            
+            p.PitchFactor = (float)Math.Pow(Math.Pow(2, 1.0 / 12), pitch*2);
+                
+            
+            
+            using var memoryStream = new MemoryStream(); 
+            using var wave = new WaveFileWriter(memoryStream, p.WaveFormat);
+            
+            float[] buffer = new float[1024];
+            int read;
+            while ((read = p.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                wave.WriteSamples(buffer, 0, read);
+            }
+
+            using var mp3MStream = new MemoryStream();
+            using var writer = new LameMP3FileWriter(mp3MStream, wave.WaveFormat, LAMEPreset.VBR_100); 
+            wave.CopyTo(writer);
+            var result = new MemoryStream(); 
+            writer.CopyTo(result);
+            return result; 
+        }
+
+        public static MemoryStream ToPitched(this byte[] file, double pitch)
+        {
+            var mStream = new MemoryStream(file); 
+            var mStreamProcessed = ToPitched(mStream, pitch); 
+            mStream.Dispose();
+            return mStreamProcessed;
         }
     }
 }

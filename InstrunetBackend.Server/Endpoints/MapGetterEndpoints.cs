@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using InstrunetBackend.Server.lib;
 
 namespace InstrunetBackend.Server.Endpoints;
 
@@ -18,54 +19,19 @@ public static class MapGetterEndpoints
     {
         app.MapGet("/{id}", async (string id, [FromQuery] float? pitch, HttpContext context) =>
         {
+            await using var dbContext = new InstrunetDbContext();
+            
             if (pitch.HasValue)
             {
-                string[] table =
-                [
-                    "0.5",
-                    "0.53125",
-                    "0.5625",
-                    "0.59375",
-                    "0.625",
-                    "0.65625",
-                    "0.6875",
-                    "0.71875",
-                    "0.75",
-                    "0.78125",
-                    "0.8125",
-                    "0.84375",
-                    "0.875",
-                    "0.90625",
-                    "0.9375",
-                    "0.96875",
-                    "1",
-                    "1.03125",
-                    "1.0625",
-                    "1.09375",
-                    "1.125",
-                    "1.15625",
-                    "1.1875",
-                    "1.21875",
-                    "1.25",
-                    "1.28125",
-                    "1.3125",
-                    "1.34375",
-                    "1.375",
-                    "1.40625",
-                    "1.4375",
-                    "1.46875"
-                ];
-                if (!table.Contains(pitch.ToString()))
+                var data = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == id)?.Databinary;
+                if (data is null)
                 {
-                    return Results.BadRequest();
+                    return Results.NotFound(); 
                 }
-
-                HttpClient client = new HttpClient();
-                var res = await client.GetByteArrayAsync("http://localhost:8080/" + id + "?pitch=" + pitch);
-                var resFinal = Results.File(res, "application/octet-stream", "处理完成.wav");
-                client.Dispose();
-
-                return resFinal;
+                using var memStream = data.ToPitched((double)pitch);
+                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Processed.mp3\"";
+                var dataProcessed = memStream.ToArray();
+                return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: true); 
             }
 
             if (cache.Any(i => i.Uuid == id))
@@ -76,7 +42,6 @@ public static class MapGetterEndpoints
                 return res;
             }
 
-            var dbContext = new InstrunetDbContext();
             if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
@@ -86,7 +51,6 @@ public static class MapGetterEndpoints
                 return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true);
             }
 
-            await dbContext.DisposeAsync();
 
             return Results.NotFound();
         });
