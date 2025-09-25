@@ -1,12 +1,15 @@
 ﻿using System.Collections.ObjectModel;
 using System.Net;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
+using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
 using Newtonsoft.Json;
 using WebPWrapper.Encoder;
@@ -15,7 +18,7 @@ namespace InstrunetBackend.Server.Endpoints;
 
 internal static class MapProcessingEndpoints
 {
-    private static Func<SubmitContext, string?, IResult>? _handler;
+    private static Func<(SubmitContext?, SubmitContext<IFormFile>?), string?, IResult>? _handler;
 
     public static WebApplication Queue(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
@@ -31,178 +34,360 @@ internal static class MapProcessingEndpoints
 
     public static WebApplication Submit(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
-        _handler = ([FromBody] submitContext, userUuid) =>
-        {
-            if (submitContext.AlbumName is null || string.IsNullOrEmpty(submitContext.AlbumName.Trim()))
+        _handler = (submitContext, userUuid) =>
+        {   
+            
+            if(submitContext.Item1 is null)
             {
-                submitContext.AlbumName = "未知专辑";
-            }
-
-            if (submitContext.Artist is null || string.IsNullOrEmpty(submitContext.Artist.Trim()))
-            {
-                submitContext.Artist = "未知艺术家";
-            }
-
-            if (string.IsNullOrEmpty(submitContext.Name.Trim()))
-            {
-                return Results.BadRequest(new
+                
+                var sub = submitContext.Item2!; 
+                if(sub.kind.Length == 0)
                 {
-                    Message = "文件不存在"
-                });
-            }
-
-            foreach (var kind in submitContext.Kind)
-            {
-                using var context = new InstrunetDbContext();
-
-                #region rep1
-
-                var rep = context.InstrunetEntries.Count(i => ((i.SongName == (submitContext.Name) &&
-                                                                i.Artist == (submitContext.Artist)) ||
-                                                               (i.SongName == (
-                                                                    ChineseConverter.Convert(submitContext
-                                                                            .Name,
-                                                                        ChineseConversionDirection
-                                                                            .SimplifiedToTraditional)) &&
-                                                                i.Artist == (
-                                                                    ChineseConverter.Convert(submitContext
-                                                                            .Artist,
-                                                                        ChineseConversionDirection
-                                                                            .SimplifiedToTraditional))) ||
-                                                               (i.SongName == (
-                                                                    ChineseConverter.Convert(submitContext
-                                                                            .Name,
-                                                                        ChineseConversionDirection
-                                                                            .TraditionalToSimplified)) &&
-                                                                i.Artist == (
-                                                                    ChineseConverter.Convert(submitContext
-                                                                            .Artist,
-                                                                        ChineseConversionDirection
-                                                                            .TraditionalToSimplified))
-                                                               )) && i.Kind == kind);
-
-                #endregion
-
-                #region rep2
-
-                var rep2 = queue.Count(i => ((i.Name == (submitContext.Name) &&
-                                              i.Artist == (submitContext.Artist)) ||
-                                             (i.Name == (
-                                                  ChineseConverter.Convert(submitContext
-                                                          .Name,
-                                                      ChineseConversionDirection
-                                                          .SimplifiedToTraditional)) &&
-                                              i.Artist == (
-                                                  ChineseConverter.Convert(submitContext
-                                                      .Artist, ChineseConversionDirection.SimplifiedToTraditional))) ||
-                                             (i.Name == (
-                                                  ChineseConverter.Convert(submitContext
-                                                      .Name, ChineseConversionDirection.TraditionalToSimplified)) &&
-                                              i.Artist == (
-                                                  ChineseConverter.Convert(submitContext
-                                                      .Artist, ChineseConversionDirection.TraditionalToSimplified))
-                                             )) && i.Kind == kind);
-
-                #endregion
-
-                if (rep != 0 || rep2 != 0) return Results.InternalServerError();
-
-                #region coverProcess
-
-                if (submitContext.AlbumCover is null)
+                    return Results.BadRequest(); 
+                }
+                if (sub.albumName is null || string.IsNullOrEmpty(sub.albumName.Trim()))
                 {
-                    goto skip_compression;
+                    sub.albumName = "未知专辑";
                 }
 
-                WebPEncoderBuilder? builder = null;
-                switch (Environment.OSVersion.Platform)
+                if (sub.artist is null || string.IsNullOrEmpty(sub.artist.Trim()))
                 {
-                    case PlatformID.Win32NT:
-                        builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-windows-x64/bin/cwebp.exe");
-                        break;
-                    case PlatformID.Unix:
-                        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    sub.artist = "未知艺术家";
+                }
+
+                if (string.IsNullOrEmpty(sub.name.Trim()))
+                {
+                    return Results.BadRequest(new
+                    {
+                        Message = "文件不存在"
+                    });
+                }
+
+                var kind = sub.kind[0]; 
+                    using var context = new InstrunetDbContext();
+
+                    #region rep1
+
+                    var rep = context.InstrunetEntries.Count(i => ((i.SongName == (sub.name) &&
+                                                                    i.Artist == (sub.artist)) ||
+                                                                   (i.SongName == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .name,
+                                                                            ChineseConversionDirection
+                                                                                .SimplifiedToTraditional)) &&
+                                                                    i.Artist == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .artist,
+                                                                            ChineseConversionDirection
+                                                                                .SimplifiedToTraditional))) ||
+                                                                   (i.SongName == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .name,
+                                                                            ChineseConversionDirection
+                                                                                .TraditionalToSimplified)) &&
+                                                                    i.Artist == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .artist,
+                                                                            ChineseConversionDirection
+                                                                                .TraditionalToSimplified))
+                                                                   )) && i.Kind == kind);
+
+                    #endregion
+
+                    #region rep2
+
+                    var rep2 = queue.Count(i => ((i.Name == (sub.name) &&
+                                                  i.Artist == (sub.artist)) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert(sub
+                                                              .name,
+                                                          ChineseConversionDirection
+                                                              .SimplifiedToTraditional)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(sub
+                                                          .artist, ChineseConversionDirection.SimplifiedToTraditional))) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert(sub
+                                                          .name, ChineseConversionDirection.TraditionalToSimplified)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(sub
+                                                          .artist, ChineseConversionDirection.TraditionalToSimplified))
+                                                 )) && i.Kind == kind);
+
+                    #endregion
+
+                    if (rep != 0 || rep2 != 0) return Results.InternalServerError("已在数据库中存在");
+
+
+                    if (sub.albumCover is null)
+                    {
+                        try
                         {
-                            if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+
+                            using var mStream = new MemoryStream();
+                            sub.fileBinary.CopyTo(mStream);
+                            
+                            queue.Add(new()
                             {
-                                builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-arm64/bin/cwebp");
-                                break;
-                            }
+                                Uuid = Guid.NewGuid()
+                                .ToString(),
+                                Name = sub.name,
+                                Artist = sub.artist,
+                                AlbumName = sub.albumName,
+                                Kind = kind,
+                                Email = sub.email,
+                                Link = sub.link,
+                                UserUuid = userUuid,
+                                AlbumCover = null,
+                                DateTimeUploaded = DateTime.Now,
+                                CancellationToken = new CancellationTokenSource(),
+                                File = mStream.ToArray(),
+                                ProcessTask = null!,
+                            });
+                            return Results.Ok();
 
-                            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-x86-64/bin/cwebp");
-                            break;
                         }
-
-                        Console.WriteLine("No cwebp for you. ");
-                        break;
-
-
-                    case PlatformID.Other:
-                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        catch (FormatException e)
                         {
-                            if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+                            return Results.BadRequest(new
                             {
-                                builder = new WebPEncoderBuilder(
-                                    Program.CWebP + "libwebp-1.6.0-linux-aarch64/bin/cwebp");
-                                break;
-                            }
-
-                            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
-                            break;
+                                e.Message
+                            });
                         }
+                    }
 
-                        Console.WriteLine("No cwebp for you. ");
-                        break;
-                }
+                    var builder = LibraryHelper.CreateWebPEncoderBuilder(); 
 
-                if (builder is null)
+                    if (builder is null)
+                    {
+                        try
+                        {
+
+                            using var mStream = new MemoryStream();
+                            sub.fileBinary.CopyTo(mStream);
+                            using var albumPicture = new MemoryStream();
+                            sub.albumCover.CopyTo(albumPicture); 
+                            queue.Add(new()
+                            {
+                                Uuid = Guid.NewGuid()
+                                .ToString(),
+                                Name = sub.name,
+                                Artist = sub.artist,
+                                AlbumName = sub.albumName,
+                                Kind = kind,
+                                Email = sub.email,
+                                Link = sub.link,
+                                UserUuid = userUuid,
+                                AlbumCover = albumPicture.ToArray(),
+                                DateTimeUploaded = DateTime.Now,
+                                CancellationToken = new CancellationTokenSource(),
+                                File = mStream.ToArray(),
+                                ProcessTask = null!,
+                            });
+                            return Results.Ok();
+
+                        }
+                        catch (FormatException e)
+                        {
+                            return Results.BadRequest(new
+                            {
+                                e.Message
+                            });
+                        }
+                    }
+
+                    
+
+
+                    try
+                    {
+
+                            var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                            using var input = new MemoryStream();
+                            sub.albumCover.CopyTo(input);
+                    input.Position = 0; 
+                            using var output = new MemoryStream();
+                            encoder.Encode(input, output);
+                           
+                            using var mStream = new MemoryStream();
+                            sub.fileBinary.CopyTo(mStream);
+                            queue.Add(new()
+                            {
+                                Uuid = Guid.NewGuid()
+                                .ToString(),
+                                Name = sub.name,
+                                Artist = sub.artist,
+                                AlbumName = sub.albumName,
+                                Kind = kind,
+                                Email = sub.email,
+                                Link = sub.link,
+                                UserUuid = userUuid,
+                                AlbumCover = output.ToArray(),
+                                DateTimeUploaded = DateTime.Now,
+                                CancellationToken = new CancellationTokenSource(),
+                                File = mStream.ToArray(),
+                                ProcessTask = null!,
+                            });
+
+                        return Results.Ok();
+                    }
+                    catch (Exception e)
+                    {
+                        return Results.BadRequest(new
+                        {
+                            e.Message
+                        });
+                    }
+                
+
+                
+            }else
+            {
+                var sub = submitContext.Item1!;
+                if(sub.kind.Length == 0)
                 {
-                    goto skip_compression;
+                    return Results.BadRequest(); 
+                }
+                if (sub.albumName is null || string.IsNullOrEmpty(sub.albumName.Trim()))
+                {
+                    sub.albumName = "未知专辑";
                 }
 
-                var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
-                var input = new MemoryStream(submitContext.AlbumCover.DataUrlToByteArray());
-                var output = new MemoryStream();
-                encoder.Encode(input, output);
-                submitContext.AlbumCover = "data:image/webp;base64," + Convert.ToBase64String(output.ToArray());
-                output.Dispose();
-                input.Dispose();
+                if (sub.artist is null || string.IsNullOrEmpty(sub.artist.Trim()))
+                {
+                    sub.artist = "未知艺术家";
+                }
+
+                if (string.IsNullOrEmpty(sub.name.Trim()))
+                {
+                    return Results.BadRequest(new
+                    {
+                        Message = "文件不存在"
+                    });
+                }
+
+                var kind = sub.kind[0]; 
+                    using var context = new InstrunetDbContext();
+
+                    #region rep1
+
+                    var rep = context.InstrunetEntries.Count(i => ((i.SongName == (sub.name) &&
+                                                                    i.Artist == (sub.artist)) ||
+                                                                   (i.SongName == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .name,
+                                                                            ChineseConversionDirection
+                                                                                .SimplifiedToTraditional)) &&
+                                                                    i.Artist == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .artist,
+                                                                            ChineseConversionDirection
+                                                                                .SimplifiedToTraditional))) ||
+                                                                   (i.SongName == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .name,
+                                                                            ChineseConversionDirection
+                                                                                .TraditionalToSimplified)) &&
+                                                                    i.Artist == (
+                                                                        ChineseConverter.Convert(sub
+                                                                                .artist,
+                                                                            ChineseConversionDirection
+                                                                                .TraditionalToSimplified))
+                                                                   )) && i.Kind == kind);
+
+                    #endregion
+
+                    #region rep2
+
+                    var rep2 = queue.Count(i => ((i.Name == (sub.name) &&
+                                                  i.Artist == (sub.artist)) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert(sub
+                                                              .name,
+                                                          ChineseConversionDirection
+                                                              .SimplifiedToTraditional)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(sub
+                                                          .artist, ChineseConversionDirection.SimplifiedToTraditional))) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert(sub
+                                                          .name, ChineseConversionDirection.TraditionalToSimplified)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(sub
+                                                          .artist, ChineseConversionDirection.TraditionalToSimplified))
+                                                 )) && i.Kind == kind);
+
+                    #endregion
+
+                    if (rep != 0 || rep2 != 0) return Results.InternalServerError("已在数据库中存在");
+
+                    #region coverProcess
+
+                    if (sub.albumCover is null)
+                    {
+                        goto skip_compression;
+                    }
+
+                    var builder = LibraryHelper.CreateWebPEncoderBuilder(); 
+
+                    if (builder is null)
+                    {
+                        goto skip_compression;
+                    }
+
+                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                    var input = new MemoryStream(sub.albumCover.DataUrlToByteArray());
+                    var output = new MemoryStream();
+                    encoder.Encode(input, output);
+                    sub.albumCover = "data:image/webp;base64," + Convert.ToBase64String(output.ToArray());
+                    output.Dispose();
+                    input.Dispose();
+            
+                    
 
                 #endregion
 
                 skip_compression:
-                try
-                {
-                    queue.Add(new()
+                    try
                     {
-                        Uuid = Guid.NewGuid()
-                            .ToString(),
-                        Name = submitContext.Name,
-                        Artist = submitContext.Artist,
-                        AlbumName = submitContext.AlbumName,
-                        Kind = kind,
-                        Email = submitContext.Email,
-                        Link = submitContext.Link,
-                        UserUuid = userUuid,
-                        AlbumCover = submitContext.AlbumCover?.DataUrlToByteArray(),
-                        DateTimeUploaded = DateTime.Now,
-                        CancellationToken = new CancellationTokenSource(),
-                        File = submitContext.File.DataUrlToByteArray(),
-                        ProcessTask = null!,
-                    });
-                }
-                catch (FormatException e)
-                {
-                    return Results.BadRequest(new
-                    {
-                        e.Message
-                    });
-                }
-            }
+                        
 
-            return Results.Ok();
+                        
+                        queue.Add(new()
+                        {
+                            Uuid = Guid.NewGuid()
+                            .ToString(),
+                            Name = sub.name,
+                            Artist = sub.artist,
+                            AlbumName = sub.albumName,
+                            Kind = kind,
+                            Email = sub.email,
+                            Link = sub.link,
+                            UserUuid = userUuid,
+                            AlbumCover = sub.albumCover?.DataUrlToByteArray(),
+                            DateTimeUploaded = DateTime.Now,
+                            CancellationToken = new CancellationTokenSource(),
+                            File = sub.fileBinary,
+                            ProcessTask = null!,
+                        });
+                        return Results.Ok();
+
+
+
+                    }
+                    catch (FormatException e)
+                        {
+                            return Results.BadRequest(new
+                            {
+                                e.Message
+                            });
+                        }
+                    }
+
+            
+            
         };
-        app.MapPost("/submit", new Func<SubmitContext, HttpContext?, IResult>(([FromBody] body, context) => _handler(body, context?.Session.GetString("uuid"))));
+        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, IResult>(([FromForm] body, context) => _handler((null, body), context?.Session.GetString("uuid")))).DisableAntiforgery();
         return app;
     }
 
@@ -241,17 +426,19 @@ internal static class MapProcessingEndpoints
                         dynamic info = JsonConvert.DeserializeObject(
                             await client.GetStringAsync(
                                 "http://localhost:3958/song/detail?ids=" + body.Id))!;
-                        return _handler!(new SubmitContext
+                        return _handler!((new SubmitContext
                         {
-                            File = "data:audio/flac;base64," +
-                                   Convert.ToBase64String(await client.GetByteArrayAsync((string)end.data.url)),
-                            Name = (string)info.songs[0].name, Artist = (string)info.songs[0].ar[0].name,
-                            AlbumName = (string)info.songs[0].al.name,
-                            AlbumCover = "data:image/webp;base64," +
+                            fileBinary = await client.GetByteArrayAsync((string)end.data.url),
+                            name = (string)info.songs[0].name,
+                            artist = (string)info.songs[0].ar[0].name,
+                            albumName = (string)info.songs[0].al.name,
+                            albumCover = "data:image/webp;base64," +
                                          Convert.ToBase64String(
                                              await client.GetByteArrayAsync((string)info.songs[0].al.picUrl)),
-                            Email = body.Email, Kind = body.Kind, Link = (string)end.data.url
-                        }, context.Session.GetString("uuid"));
+                            email = body.Email,
+                            kind = body.Kind,
+                            link = (string)end.data.url
+                        }, null), context.Session.GetString("uuid"));
                     }
                 }
             }
