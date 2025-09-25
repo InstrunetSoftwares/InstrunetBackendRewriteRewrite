@@ -166,7 +166,7 @@ internal class Program
                                         Albumcover = newItem.AlbumCover,
                                         Artist = newItem.Artist,
                                         Databinary = ms.ToArray(),
-                                        Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds(),
+                                        Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
                                         Kind = newItem.Kind,
                                         User = newItem.UserUuid
                                     });
@@ -459,6 +459,7 @@ internal class Program
             o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
 
+
         // Payload size
         builder.Services.Configure<KestrelServerOptions>(o => o.Limits.MaxRequestBodySize = 1_000_000_000);
 
@@ -486,7 +487,6 @@ internal class Program
         app.UseCors("All");
 
         app.UseAuthorization();
-
         app.UseSession();
 
 
