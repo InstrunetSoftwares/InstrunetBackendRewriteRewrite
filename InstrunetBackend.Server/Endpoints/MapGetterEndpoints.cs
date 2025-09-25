@@ -89,8 +89,6 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    // TODO the function of getting albumCover through this endpoint will be deprecated soon. 
-    [Obsolete("Deprecated: // TODO the function of getting albumCover through this endpoint will be deprecated soon. ")]
     public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext> cache)
     {
         app.MapGet("/getsingle", (string id, bool? albumCover) =>

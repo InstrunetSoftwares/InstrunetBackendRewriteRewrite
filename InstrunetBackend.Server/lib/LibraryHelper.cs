@@ -71,7 +71,7 @@ namespace InstrunetBackend.Server.lib
             using var reader = new Mp3FileReaderBase(file, wf => new Mp3FrameDecompressor(wf));
             var p = new SmbPitchShiftingSampleProvider(reader.ToSampleProvider());
 
-            p.PitchFactor = (float)Math.Pow(Math.Pow(2, 1.0 / 12), pitch * 2);
+            p.PitchFactor = (float)Math.Pow(Math.Pow(2, 1.0 / 12), pitch);
 
 
 

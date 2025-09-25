@@ -11,34 +11,44 @@ namespace InstrunetBackend.Server.Endpoints
         {
             app.MapPost("/decrypterSubmit", ([FromBody] UnlockMusicSubmitPayload decrypterSubmitPayload) =>
             {
+
                 var inputDir = "./tmp/unlock-music/input";
                 var outputDir = "./tmp/unlock-music/output";
                 Directory.CreateDirectory(inputDir);
                 string uuid = Guid.NewGuid().ToString();
-                File.WriteAllBytes($"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}", decrypterSubmitPayload.FileInDataUri.DataUrlToByteArray());
-                var p = new Process
+                try
                 {
-                    StartInfo = new()
+                    File.WriteAllBytes($"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}", decrypterSubmitPayload.FileInDataUri.DataUrlToByteArray());
+                    using var p = new Process
                     {
-                        FileName = $"{Program.UM}um.exe",
-                        Arguments = $"-o {outputDir} -i \"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}\""
+                        StartInfo = new()
+                        {
+                            FileName = $"{Program.UM}um.exe",
+                            Arguments = $"-o {outputDir} -i \"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}\""
+                        }
+                    };
+                    p.Start();
+                    p.WaitForExit();
+                    if (p.ExitCode != 0)
+                    {
+                        return Results.BadRequest(new { message = "Decryption failed." });
                     }
-                };
-                p.Start();
-                p.WaitForExit();
-                if (p.ExitCode != 0)
-                {
-                    return Results.BadRequest(new { message = "Decryption failed." });
+                    var fileName = Directory.EnumerateFiles(outputDir).ToList()[0];
+                    var f = File.ReadAllBytes(fileName);
+
+                    return Results.Json(new
+                    {
+                        data = "data:application/octet-stream;base64," + Convert.ToBase64String(f),
+                        fileName
+                    });
                 }
-                var fileName = Directory.EnumerateFiles(outputDir).ToList()[0];
-                var f = File.ReadAllBytes(fileName);
-                Directory.Delete(outputDir, true);
-                File.Delete($"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}");
-                return Results.Json(new
+                finally
                 {
-                    data = "data:application/octet-stream;base64," + Convert.ToBase64String(f),
-                    fileName
-                });
+                    Directory.Delete(outputDir, true);
+                    File.Delete($"{inputDir}/{uuid}_{decrypterSubmitPayload.FileName}");
+                    GC.Collect(); 
+                }
+
             });
             return app;
         }
@@ -63,7 +73,7 @@ namespace InstrunetBackend.Server.Endpoints
         public static WebApplication MapAllUnlockMusicEndpoints(this WebApplication app)
         {
             var unlockMusicEndpoints = app.MapGroup("api/Decrypter");
-            unlockMusicEndpoints.WithTags("Decrypter"); 
+            unlockMusicEndpoints.WithTags("Decrypter");
             var methodInfos = typeof(MapUnlockMusicEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
             foreach (var item in methodInfos)
             {
@@ -73,8 +83,8 @@ namespace InstrunetBackend.Server.Endpoints
                         continue;
                     default:
                         item.Invoke(null, [unlockMusicEndpoints]);
-                        continue; 
-                        
+                        continue;
+
                 }
             }
             return app;
