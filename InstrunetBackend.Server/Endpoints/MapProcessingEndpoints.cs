@@ -1,11 +1,13 @@
 ﻿using System.Collections.ObjectModel;
 using System.Net;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
+using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
@@ -34,9 +36,15 @@ internal static class MapProcessingEndpoints
     {
         _handler = (submitContext, userUuid) =>
         {   
+            
             if(submitContext.Item1 is null)
             {
+                
                 var sub = submitContext.Item2!; 
+                if(sub.kind.Length == 0)
+                {
+                    return Results.BadRequest(); 
+                }
                 if (sub.albumName is null || string.IsNullOrEmpty(sub.albumName.Trim()))
                 {
                     sub.albumName = "未知专辑";
@@ -55,8 +63,7 @@ internal static class MapProcessingEndpoints
                     });
                 }
 
-                foreach (var kind in sub.kind)
-                {
+                var kind = sub.kind[0]; 
                     using var context = new InstrunetDbContext();
 
                     #region rep1
@@ -111,73 +118,97 @@ internal static class MapProcessingEndpoints
 
                     if (rep != 0 || rep2 != 0) return Results.InternalServerError("已在数据库中存在");
 
-                    #region coverProcess
 
                     if (sub.albumCover is null)
                     {
-                        goto skip_compression;
+                        try
+                        {
+
+                            using var mStream = new MemoryStream();
+                            sub.fileBinary.CopyTo(mStream);
+                            
+                            queue.Add(new()
+                            {
+                                Uuid = Guid.NewGuid()
+                                .ToString(),
+                                Name = sub.name,
+                                Artist = sub.artist,
+                                AlbumName = sub.albumName,
+                                Kind = kind,
+                                Email = sub.email,
+                                Link = sub.link,
+                                UserUuid = userUuid,
+                                AlbumCover = null,
+                                DateTimeUploaded = DateTime.Now,
+                                CancellationToken = new CancellationTokenSource(),
+                                File = mStream.ToArray(),
+                                ProcessTask = null!,
+                            });
+                            return Results.Ok();
+
+                        }
+                        catch (FormatException e)
+                        {
+                            return Results.BadRequest(new
+                            {
+                                e.Message
+                            });
+                        }
                     }
 
-                    WebPEncoderBuilder? builder = null;
-                    switch (Environment.OSVersion.Platform)
-                    {
-                        case PlatformID.Win32NT:
-                            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-windows-x64/bin/cwebp.exe");
-                            break;
-                        case PlatformID.Unix:
-                            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                            {
-                                if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-                                {
-                                    builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-arm64/bin/cwebp");
-                                    break;
-                                }
-
-                                builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-x86-64/bin/cwebp");
-                                break;
-                            }
-
-                            Console.WriteLine("No cwebp for you. ");
-                            break;
-
-
-                        case PlatformID.Other:
-                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                            {
-                                if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-                                {
-                                    builder = new WebPEncoderBuilder(
-                                        Program.CWebP + "libwebp-1.6.0-linux-aarch64/bin/cwebp");
-                                    break;
-                                }
-
-                                builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
-                                break;
-                            }
-
-                            Console.WriteLine("No cwebp for you. ");
-                            break;
-                    }
+                    var builder = LibraryHelper.CreateWebPEncoderBuilder(); 
 
                     if (builder is null)
                     {
-                        goto skip_compression;
+                        try
+                        {
+
+                            using var mStream = new MemoryStream();
+                            sub.fileBinary.CopyTo(mStream);
+                            using var albumPicture = new MemoryStream();
+                            sub.albumCover.CopyTo(albumPicture); 
+                            queue.Add(new()
+                            {
+                                Uuid = Guid.NewGuid()
+                                .ToString(),
+                                Name = sub.name,
+                                Artist = sub.artist,
+                                AlbumName = sub.albumName,
+                                Kind = kind,
+                                Email = sub.email,
+                                Link = sub.link,
+                                UserUuid = userUuid,
+                                AlbumCover = albumPicture.ToArray(),
+                                DateTimeUploaded = DateTime.Now,
+                                CancellationToken = new CancellationTokenSource(),
+                                File = mStream.ToArray(),
+                                ProcessTask = null!,
+                            });
+                            return Results.Ok();
+
+                        }
+                        catch (FormatException e)
+                        {
+                            return Results.BadRequest(new
+                            {
+                                e.Message
+                            });
+                        }
                     }
 
-                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
-                    var input = new MemoryStream(sub.albumCover.DataUrlToByteArray());
-                    var output = new MemoryStream();
-                    encoder.Encode(input, output);
-                    sub.albumCover = "data:image/webp;base64," + Convert.ToBase64String(output.ToArray());
-                    output.Dispose();
-                    input.Dispose();
+                    
 
-                #endregion
 
-                skip_compression:
                     try
                     {
-                       
+
+                            var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                            using var input = new MemoryStream();
+                            sub.albumCover.CopyTo(input);
+                    input.Position = 0; 
+                            using var output = new MemoryStream();
+                            encoder.Encode(input, output);
+                           
                             using var mStream = new MemoryStream();
                             sub.fileBinary.CopyTo(mStream);
                             queue.Add(new()
@@ -191,28 +222,32 @@ internal static class MapProcessingEndpoints
                                 Email = sub.email,
                                 Link = sub.link,
                                 UserUuid = userUuid,
-                                AlbumCover = sub.albumCover?.DataUrlToByteArray(),
+                                AlbumCover = output.ToArray(),
                                 DateTimeUploaded = DateTime.Now,
                                 CancellationToken = new CancellationTokenSource(),
                                 File = mStream.ToArray(),
                                 ProcessTask = null!,
                             });
-                        
 
+                        return Results.Ok();
                     }
-                    catch (FormatException e)
+                    catch (Exception e)
                     {
                         return Results.BadRequest(new
                         {
                             e.Message
                         });
                     }
-                }
+                
 
-                return Results.Ok();
+                
             }else
             {
                 var sub = submitContext.Item1!;
+                if(sub.kind.Length == 0)
+                {
+                    return Results.BadRequest(); 
+                }
                 if (sub.albumName is null || string.IsNullOrEmpty(sub.albumName.Trim()))
                 {
                     sub.albumName = "未知专辑";
@@ -231,8 +266,7 @@ internal static class MapProcessingEndpoints
                     });
                 }
 
-                foreach (var kind in sub.kind)
-                {
+                var kind = sub.kind[0]; 
                     using var context = new InstrunetDbContext();
 
                     #region rep1
@@ -294,46 +328,7 @@ internal static class MapProcessingEndpoints
                         goto skip_compression;
                     }
 
-                    WebPEncoderBuilder? builder = null;
-                    switch (Environment.OSVersion.Platform)
-                    {
-                        case PlatformID.Win32NT:
-                            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-windows-x64/bin/cwebp.exe");
-                            break;
-                        case PlatformID.Unix:
-                            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                            {
-                                if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-                                {
-                                    builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-arm64/bin/cwebp");
-                                    break;
-                                }
-
-                                builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-x86-64/bin/cwebp");
-                                break;
-                            }
-
-                            Console.WriteLine("No cwebp for you. ");
-                            break;
-
-
-                        case PlatformID.Other:
-                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                            {
-                                if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-                                {
-                                    builder = new WebPEncoderBuilder(
-                                        Program.CWebP + "libwebp-1.6.0-linux-aarch64/bin/cwebp");
-                                    break;
-                                }
-
-                                builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
-                                break;
-                            }
-
-                            Console.WriteLine("No cwebp for you. ");
-                            break;
-                    }
+                    var builder = LibraryHelper.CreateWebPEncoderBuilder(); 
 
                     if (builder is null)
                     {
@@ -347,6 +342,8 @@ internal static class MapProcessingEndpoints
                     sub.albumCover = "data:image/webp;base64," + Convert.ToBase64String(output.ToArray());
                     output.Dispose();
                     input.Dispose();
+            
+                    
 
                 #endregion
 
@@ -373,20 +370,21 @@ internal static class MapProcessingEndpoints
                             File = sub.fileBinary,
                             ProcessTask = null!,
                         });
+                        return Results.Ok();
+
 
 
                     }
                     catch (FormatException e)
-                    {
-                        return Results.BadRequest(new
                         {
-                            e.Message
-                        });
+                            return Results.BadRequest(new
+                            {
+                                e.Message
+                            });
+                        }
                     }
-                }
 
-                return Results.Ok();
-            }
+            
             
         };
         app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, IResult>(([FromForm] body, context) => _handler((null, body), context?.Session.GetString("uuid")))).DisableAntiforgery();
