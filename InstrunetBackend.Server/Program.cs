@@ -492,15 +492,11 @@ internal class Program
 
         // Datas
         var cache = new List<QueueContext>();
-
-        Task.Run(() =>
+        Timer timer = new Timer((e) =>
         {
-            while (true)
-            {
-                cache.Clear();
-                Task.Delay(60 * 60 * 24).GetAwaiter().GetResult();
-            }
-        }); 
+            cache.Clear();
+        }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
+        
 
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
