@@ -124,7 +124,7 @@ public static class MapUserEndpoints
 
     public static WebApplication MapUploadAvatar(this WebApplication app)
     {
-        app.MapPost("/uploadAvatar", (HttpContext context, [FromBody] AvatarUploadContextPayload form) =>
+        app.MapPost("/uploadAvatar", async (HttpContext context) =>
         {
             string? uuidSession = context.Session.GetString("uuid");
             if (string.IsNullOrWhiteSpace(uuidSession))
@@ -132,7 +132,13 @@ public static class MapUserEndpoints
                 return Results.BadRequest();
             }
 
-            byte[] byteArray = form.Avatar.SelectMany(BitConverter.GetBytes).ToArray();
+            var data = await new StreamReader(context.Request.Body).ReadLineAsync();
+            if (data is null)
+            {
+                return Results.BadRequest(); 
+            }
+
+            byte[] byteArray = data.DataUrlToByteArray(); 
             using var dbContext = new InstrunetDbContext();
             var rows = dbContext.Users.Where(i => i.Uuid == uuidSession)
                 .ExecuteUpdate(setter => setter.SetProperty(i => i.Avatar, byteArray));
@@ -191,23 +197,30 @@ public static class MapUserEndpoints
     }
     public static WebApplication MapRegister(this WebApplication app)
     {
-        app.MapPost("register", ([FromBody] RegisterContextPayload payload, HttpContext httpContext) =>
+        app.MapPost("/register", ([FromBody] RegisterContextPayload payload, HttpContext httpContext) =>
         {
             using var dbContext = new InstrunetDbContext();
             if(dbContext.Users.Any(i=>i.Username == payload.Username.Trim()))
             {
                 return Results.BadRequest(); 
             }
+
+            var newUuid = Guid.NewGuid().ToString(); 
             dbContext.Users.Add(new User
             {
-                Uuid = Guid.NewGuid().ToString(),
+                Uuid = newUuid,
                 Username = payload.Username.Trim(),
                 Password = payload.Password.Sha256HexHashString(),
                 Email = payload.Email,
                 Time = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()
             });
             dbContext.SaveChanges();
-            return Results.Ok();
+                httpContext.Session.SetString("uuid", newUuid);
+            
+            return Results.Json(new
+            {
+                uid = newUuid
+            });
         }); 
         return app;
     }
