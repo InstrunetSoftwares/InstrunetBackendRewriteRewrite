@@ -86,7 +86,7 @@ namespace InstrunetBackend.Server.lib
             }
             memoryStream.Position = 0;
             var outputMp3Stream = new MemoryStream();
-            FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), o => o.WithAudioCodec("pcm_f32le")).OutputToPipe(new StreamPipeSink(outputMp3Stream), o => o.WithAudioCodec("mp3").ForceFormat("mp3")).NotifyOnError(i => Console.WriteLine(i)).NotifyOnOutput(Console.WriteLine).WithLogLevel(FFMpegCore.Enums.FFMpegLogLevel.Debug).ProcessSynchronously();
+            FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), o => o.WithAudioCodec("pcm_f32le")).OutputToPipe(new StreamPipeSink(outputMp3Stream), o => o.WithAudioCodec("mp3").ForceFormat("mp3").WithAudioBitrate(320000)).NotifyOnError(i => Console.WriteLine(i)).NotifyOnOutput(Console.WriteLine).WithLogLevel(FFMpegCore.Enums.FFMpegLogLevel.Debug).ProcessSynchronously();
             return outputMp3Stream;
         }
 

@@ -407,9 +407,9 @@ internal class Program
 
         CleanupHandler = (_, e) =>
         {
-            if (e is ConsoleCancelEventArgs)
+            if (e is ConsoleCancelEventArgs args)
             {
-                ((ConsoleCancelEventArgs)e).Cancel = true;
+                args.Cancel = true;
             }
 
             Console.WriteLine("Cleaning up...");
