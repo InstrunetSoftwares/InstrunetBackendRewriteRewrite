@@ -1,6 +1,7 @@
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
 using InstrunetBackend.Server.InstrunetModels;
+using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
@@ -138,7 +139,16 @@ public static class MapUserEndpoints
                 return Results.BadRequest(); 
             }
 
-            byte[] byteArray = data.DataUrlToByteArray(); 
+            byte[] byteArray = data.DataUrlToByteArray();
+            var builder = LibraryHelper.CreateWebPEncoderBuilder();
+            if (builder is not null)
+            {
+                var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                using var input = new MemoryStream(byteArray);
+                using var output = new MemoryStream();
+                encoder.Encode(input, output);
+                byteArray = output.ToArray();
+            }
             using var dbContext = new InstrunetDbContext();
             var rows = dbContext.Users.Where(i => i.Uuid == uuidSession)
                 .ExecuteUpdate(setter => setter.SetProperty(i => i.Avatar, byteArray));

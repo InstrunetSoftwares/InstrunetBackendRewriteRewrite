@@ -159,14 +159,22 @@ namespace InstrunetBackend.Server.Endpoints
                 }
                 #region compression
                 var builder = LibraryHelper.CreateWebPEncoderBuilder();
-                if (builder is not null)
+                try
                 {
-                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
-                    using var input = new MemoryStream(buffer);
-                    using var output = new MemoryStream();
-                    encoder.Encode(input, output);
-                    buffer = output.ToArray(); 
+                    if (builder is not null)
+                    {
+                        var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                        using var input = new MemoryStream(buffer);
+                        using var output = new MemoryStream();
+                        encoder.Encode(input, output);
+                        buffer = output.ToArray();
+                    }
                 }
+                catch (Exception e)
+                {
+                    return Results.BadRequest("文件不支持或不合法: " + e); 
+                }
+               
                
 
 
