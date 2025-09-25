@@ -2,7 +2,6 @@
 using System.Runtime.InteropServices;
 using FFMpegCore;
 using FFMpegCore.Pipes;
-using NAudio.Lame;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using NLayer.NAudioSupport;
@@ -101,7 +100,7 @@ namespace InstrunetBackend.Server.lib
                 }
                 memoryStream.Position = 0;
                 var outputMp3Stream = new MemoryStream();
-                FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), o => o.WithAudioCodec("pcm_f32le")).OutputToPipe(new StreamPipeSink(outputMp3Stream), o => o.WithAudioCodec("mp3").ForceFormat("mp3").WithAudioBitrate(320000)).NotifyOnError(i => Console.WriteLine(i)).NotifyOnOutput(Console.WriteLine).WithLogLevel(FFMpegCore.Enums.FFMpegLogLevel.Debug).ProcessSynchronously();
+                FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), o => o.WithAudioCodec("pcm_f32le")).OutputToPipe(new StreamPipeSink(outputMp3Stream), o => o.WithAudioCodec("mp3").ForceFormat("mp3").WithAudioBitrate(320000)).NotifyOnError(i => Console.WriteLine(i)).NotifyOnOutput(Console.WriteLine).WithLogLevel(FFMpegCore.Enums.FFMpegLogLevel.Warning).ProcessSynchronously();
                 return outputMp3Stream;
             }
             finally
