@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstrunetBackend.Server", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstrunetTestProject", "InstrunetTestProject\InstrunetTestProject.csproj", "{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstrunetBackend.FrontEndDeployer", "InstrunetBackend.FrontEndDeployer\InstrunetBackend.FrontEndDeployer.csproj", "{0FF92A9C-AFFE-471C-B5DA-579ABABD9213}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F4C72E9-A61B-48F1-9B7E-98A24AB97A20}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FF92A9C-AFFE-471C-B5DA-579ABABD9213}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FF92A9C-AFFE-471C-B5DA-579ABABD9213}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FF92A9C-AFFE-471C-B5DA-579ABABD9213}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FF92A9C-AFFE-471C-B5DA-579ABABD9213}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
