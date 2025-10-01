@@ -228,9 +228,6 @@ public static class MapGetterEndpoints
                 var result = await client.SendAsync(message);
                 if (result.StatusCode is HttpStatusCode.OK or HttpStatusCode.NotModified)
                 {
-                    Console.WriteLine(await http.GetStringAsync(
-                        "http://localhost:5999/song/detail?ids=" + id));
-                    Console.WriteLine(await result.Content.ReadAsStringAsync());
                     dynamic? end = JsonConvert.DeserializeObject<dynamic>(await result.Content.ReadAsStringAsync());
                     if (end?.data.url != null)
                     {
@@ -241,8 +238,6 @@ public static class MapGetterEndpoints
                         httpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"target.flac\"";
                         return file;
                     }
-
-                    return Results.BadRequest("不存在");
                 }
                 return Results.BadRequest("不存在");
 
