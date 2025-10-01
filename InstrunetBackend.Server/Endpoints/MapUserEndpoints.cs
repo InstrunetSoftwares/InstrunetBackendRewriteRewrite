@@ -154,7 +154,7 @@ public static class MapUserEndpoints
             }
             catch (Exception e)
             {
-                return Results.BadRequest("�ļ���֧�ֻ򲻺Ϸ�: " + e);
+                return Results.BadRequest("文件不支持或不合法: " + e);
             }
             
             using var dbContext = new InstrunetDbContext();
