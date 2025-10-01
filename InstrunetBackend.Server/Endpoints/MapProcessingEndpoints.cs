@@ -55,11 +55,11 @@ internal static class MapProcessingEndpoints
                     sub.artist = "未知艺术家";
                 }
 
-                if (string.IsNullOrEmpty(sub.name.Trim()))
+                if (string.IsNullOrWhiteSpace(sub.name))
                 {
                     return Results.BadRequest(new
                     {
-                        Message = "文件不存在"
+                        Message = "请指定文件名称。"
                     });
                 }
 
@@ -387,7 +387,7 @@ internal static class MapProcessingEndpoints
             
             
         };
-        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, IResult>(([FromForm] body, context) => _handler((null, body), context?.Session.GetString("uuid")))).DisableAntiforgery();
+        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, IResult>(([FromForm] body, context) => _handler((null, body), context?.Session.GetString("uuid")))).DisableAntiforgery().RequireRateLimiting("UploadRateLimiting");
         return app;
     }
 
@@ -453,7 +453,7 @@ internal static class MapProcessingEndpoints
             }
 
             return Results.BadRequest("不存在或需要付费");
-        });
+        }).RequireRateLimiting("UploadRateLimiting");
         return app;
     }
 

@@ -200,7 +200,7 @@ public static class MapGetterEndpoints
             var resp = await client.GetAsync(
                 $"http://andyxie.cn:28883/jsonapi?title={ChineseConverter.Convert(lyricReceiveContext.Name, ChineseConversionDirection.TraditionalToSimplified)}&artist={ChineseConverter.Convert(lyricReceiveContext.Artist, ChineseConversionDirection.TraditionalToSimplified)}&album={ChineseConverter.Convert(lyricReceiveContext.AlbumName, ChineseConversionDirection.TraditionalToSimplified)}");
             client.Dispose();
-            return Results.Json(await resp.Content.ReadAsStringAsync());
+            return Results.Json(await resp.Content.ReadFromJsonAsync<dynamic>());
         });
         return app;
     }
