@@ -36,6 +36,6 @@ while (true)
         Console.WriteLine(e); 
     }
    
-    Console.WriteLine("Waiting for another 15 sec. "); 
-    Task.Delay(TimeSpan.FromSeconds(15)).GetAwaiter().GetResult(); 
+    Console.WriteLine("Waiting for another 15 min. "); 
+    Task.Delay(TimeSpan.FromMinutes(15)).GetAwaiter().GetResult(); 
 }
