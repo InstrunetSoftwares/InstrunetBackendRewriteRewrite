@@ -17,21 +17,19 @@ public static class MapGetterEndpoints
 {
     public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/{id}", async (string id, [FromQuery] float? pitch, HttpContext context) =>
+        app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
         {
-            await using var dbContext = new InstrunetDbContext();
-            
             if (pitch.HasValue)
             {
                 var data = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == id)?.Databinary;
                 if (data is null)
                 {
-                    return Results.NotFound(); 
+                    return Task.FromResult(Results.NotFound()); 
                 }
                 using var memStream = data.ToPitched((double)pitch);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Processed.mp3\"";
                 var dataProcessed = memStream.ToArray();
-                return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: true); 
+                return Task.FromResult(Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: true)); 
             }
 
             if (cache.Any(i => i.Uuid == id))
@@ -39,7 +37,7 @@ public static class MapGetterEndpoints
                 var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: true);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
-                return res;
+                return Task.FromResult(res);
             }
 
             if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
@@ -48,18 +46,18 @@ public static class MapGetterEndpoints
                 cache.Add(entry);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
-                return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true);
+                return Task.FromResult(Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true));
             }
 
 
-            return Results.NotFound();
+            return Task.FromResult(Results.NotFound());
         });
         return app;
     }
 
     public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/getalbumcover", (string id) =>
+        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context) =>
         {
             if (cache.Any(i => i.Uuid == id))
             {
@@ -72,7 +70,6 @@ public static class MapGetterEndpoints
                 return Results.File(cover, "image/webp", enableRangeProcessing: true);
             }
 
-            using var context = new InstrunetDbContext();
             if (!context.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 return Results.BadRequest();
@@ -91,9 +88,8 @@ public static class MapGetterEndpoints
 
     public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/getsingle", (string id, bool? albumCover) =>
+        app.MapGet("/getsingle", (string id, bool? albumCover, InstrunetDbContext context) =>
         {
-            using var context = new InstrunetDbContext();
             if (cache.Any(i => i.Uuid == id))
             {
                 if (albumCover.HasValue && albumCover.Value)
@@ -135,9 +131,8 @@ public static class MapGetterEndpoints
 
     public static WebApplication Search(this WebApplication app)
     {
-        app.MapPost("/search_api", ([FromBody] SearchParamsPayload searchParams) =>
+        app.MapPost("/search_api", ([FromBody] SearchParamsPayload searchParams, InstrunetDbContext context) =>
         {
-            using var context = new InstrunetDbContext();
             if (searchParams.SearchStr != null)
             {
                 searchParams.SearchStr = searchParams.SearchStr.Trim();

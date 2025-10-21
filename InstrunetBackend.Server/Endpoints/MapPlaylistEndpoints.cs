@@ -16,7 +16,7 @@ namespace InstrunetBackend.Server.Endpoints
     {
         public static WebApplication MapGetPlaylistOwned(this WebApplication app)
         {
-            app.MapPost("playlist-owned", (HttpContext httpContext, bool thumbnail = true) =>
+            app.MapPost("playlist-owned", (HttpContext httpContext,InstrunetDbContext context,  bool thumbnail = true ) =>
             {
                 var uuidSession = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrEmpty(uuidSession))
@@ -24,7 +24,6 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.StatusCode(500);
                 }
 
-                using var context = new InstrunetDbContext();
                 var arr = context.Playlists.Where(i => i.Owner == uuidSession);
                 List<object> sendObj = [];
                 foreach (var obj in arr)
@@ -54,9 +53,8 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapGetPlaylist(this WebApplication app)
         {
-            app.MapGet("/playlist", (string playlistUuid) =>
+            app.MapGet("/playlist", (string playlistUuid, InstrunetDbContext context) =>
             {
-                using var context = new InstrunetDbContext();
                 var arr = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => new
                 {
                     OwnerName = context.Users.Where(u => u.Uuid == i.Owner).Select(i => i.Username).AsEnumerable().FirstOrDefault() ?? "DELETED USER",
@@ -73,9 +71,8 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapGetPlaylistName(this WebApplication app)
         {
-            app.MapGet("/playlist-name", (string playlistUuid) =>
+            app.MapGet("/playlist-name", (string playlistUuid, InstrunetDbContext context) =>
             {
-                using var context = new InstrunetDbContext();
                 var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Title).FirstOrDefault();
                 return Results.Text(res ?? null);
             });
@@ -84,9 +81,8 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapGetPlaylistThumbnail(this WebApplication app)
         {
-            app.MapGet("/playlist-tmb", (string playlistUuid, bool asFile = false) =>
+            app.MapGet("/playlist-tmb", (string playlistUuid, InstrunetDbContext context,  bool asFile = false) =>
             {
-                using var context = new InstrunetDbContext();
                 var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Tmb).FirstOrDefault();
                 if (asFile)
                 {
@@ -111,7 +107,7 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapUploadPlaylist(this WebApplication app)
         {
-            app.MapPost("/upload-playlist", (HttpContext httpContext, [FromBody] PlaylistUploadContext uploadContent) =>
+            app.MapPost("/upload-playlist", (HttpContext httpContext, [FromBody] PlaylistUploadContext uploadContent, InstrunetDbContext context) =>
             {
                 var userUuid = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrWhiteSpace(userUuid))
@@ -119,7 +115,6 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.Unauthorized();
                 }
 
-                using var context = new InstrunetDbContext();
                 if (!context.Playlists.Any(i => i.Uuid == uploadContent.PlaylistUuid))
                 {
                     return Results.BadRequest();
@@ -140,7 +135,7 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.InternalServerError();
                 }
             });
-            app.MapPost("/upload-playlist-thumbnail", ([FromBody] PlaylistUploadThumbnailContext uploadContext, HttpContext httpContext) =>
+            app.MapPost("/upload-playlist-thumbnail", ([FromBody] PlaylistUploadThumbnailContext uploadContext, HttpContext httpContext, InstrunetDbContext context) =>
             {
                 var userUuid = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrWhiteSpace(userUuid))
@@ -179,7 +174,6 @@ namespace InstrunetBackend.Server.Endpoints
 
 
                 #endregion
-                using var context = new InstrunetDbContext();
                 try
                 {
                     context.Playlists.Where(i => i.Uuid == uploadContext.PlaylistUuid).ExecuteUpdate(setters =>
@@ -192,7 +186,7 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.InternalServerError();
                 }
             });
-            app.MapGet("/create-playlist", (HttpContext httpContext) =>
+            app.MapGet("/create-playlist", (HttpContext httpContext, InstrunetDbContext context) =>
             {
                 var user = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrWhiteSpace(user))
@@ -200,7 +194,6 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.Unauthorized(); 
                 }
 
-                using var context = new InstrunetDbContext();
                 var uuid = Guid.NewGuid().ToString(); 
                 context.Playlists.Add(new()
                 {
@@ -214,7 +207,7 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapRemovePlaylist(this WebApplication app)
         {
-            app.MapPost("/remove-playlist", ([FromBody] RemovePlaylistPayload removeBody, HttpContext httpContext) =>
+            app.MapPost("/remove-playlist", ([FromBody] RemovePlaylistPayload removeBody, HttpContext httpContext, InstrunetDbContext context) =>
             {
                 string? uuidSession = httpContext.Session.GetString("uuid");
                 if (string.IsNullOrWhiteSpace(uuidSession))
@@ -222,7 +215,6 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.BadRequest();
                 }
 
-                using var context = new InstrunetDbContext();
                 var ownerUuid = context.Playlists.Where(i => i.Uuid == removeBody.Playlistuuid).Select(i => i.Owner)
                     .FirstOrDefault();
                 if (ownerUuid == uuidSession)

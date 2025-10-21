@@ -18,7 +18,7 @@ namespace InstrunetBackend.Server.Endpoints;
 
 internal static class MapProcessingEndpoints
 {
-    private static Func<(SubmitContext?, SubmitContext<IFormFile>?), string?, IResult>? _handler;
+    private static Func<(SubmitContext?, SubmitContext<IFormFile>?), string?, InstrunetDbContext,  IResult>? _handler;
 
     public static WebApplication Queue(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
@@ -34,7 +34,7 @@ internal static class MapProcessingEndpoints
 
     public static WebApplication Submit(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
-        _handler = (submitContext, userUuid) =>
+        _handler = (submitContext, userUuid, context) =>
         {   
             
             if(submitContext.Item1 is null)
@@ -64,7 +64,6 @@ internal static class MapProcessingEndpoints
                 }
 
                 var kind = sub.kind[0]; 
-                    using var context = new InstrunetDbContext();
 
                     #region rep1
 
@@ -267,7 +266,6 @@ internal static class MapProcessingEndpoints
                 }
 
                 var kind = sub.kind[0]; 
-                    using var context = new InstrunetDbContext();
 
                     #region rep1
 
@@ -387,13 +385,13 @@ internal static class MapProcessingEndpoints
             
             
         };
-        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, IResult>(([FromForm] body, context) => _handler((null, body), context?.Session.GetString("uuid")))).DisableAntiforgery().RequireRateLimiting("UploadRateLimiting");
+        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, InstrunetDbContext, IResult>(([FromForm] body, context, dbContext) => _handler((null, body), context?.Session.GetString("uuid"), dbContext))).DisableAntiforgery().RequireRateLimiting("UploadRateLimiting");
         return app;
     }
 
     public static WebApplication NcmUrl(this WebApplication app)
     {
-        app.MapPost("/ncm/url", async ([FromBody] NcmUrlContext body, HttpContext context) =>
+        app.MapPost("/ncm/url", async ([FromBody] NcmUrlContext body, HttpContext context, InstrunetDbContext dbContext) =>
         {
             HttpClientHandler? handler = null;
             HttpClient? client = null;
@@ -438,7 +436,7 @@ internal static class MapProcessingEndpoints
                             email = body.Email,
                             kind = body.Kind,
                             link = (string)end.data.url
-                        }, null), context.Session.GetString("uuid"));
+                        }, null), context.Session.GetString("uuid"), dbContext);
                     }
                 }
             }

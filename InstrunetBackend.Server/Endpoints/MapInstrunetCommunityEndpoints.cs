@@ -12,7 +12,7 @@ public static class MapInstrunetCommunityEndpoints
 {
     public static RouteGroupBuilder Upvote(this RouteGroupBuilder app)
     {
-        app.MapPost("/upvote", async ( HttpContext httpContext) =>
+        app.MapPost("/upvote", async ( HttpContext httpContext, InstrunetDbContext context) =>
         {
             var sessionUuid = httpContext.Session.GetString("uuid");
             if (string.IsNullOrWhiteSpace(sessionUuid))
@@ -23,7 +23,6 @@ public static class MapInstrunetCommunityEndpoints
             using var reader = new StreamReader(httpContext.Request.Body);
             var uuid = await reader.ReadToEndAsync(); 
 
-            using var context = new InstrunetDbContext(); 
             if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0)
             {
                 return Results.NotFound("查无此歌");
@@ -45,7 +44,7 @@ public static class MapInstrunetCommunityEndpoints
             {
                 Uuid = Guid.NewGuid().ToString(), IsUpvote = true, Master = uuid, User = sessionUuid
             });
-            context.SaveChanges();
+            await context.SaveChangesAsync();
             return Results.Ok();
         }); 
         return app; 
@@ -53,7 +52,7 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder Downvote(this RouteGroupBuilder app)
     {
-        app.MapPost("/downvote", async (HttpContext httpContext) =>
+        app.MapPost("/downvote", async (HttpContext httpContext, InstrunetDbContext context) =>
         {
             var sessionUuid = httpContext.Session.GetString("uuid");
             if (string.IsNullOrWhiteSpace(sessionUuid))
@@ -63,7 +62,6 @@ public static class MapInstrunetCommunityEndpoints
             using var reader = new StreamReader(httpContext.Request.Body);
             var uuid = await reader.ReadToEndAsync(); 
 
-            using var context = new InstrunetDbContext();
             if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0)
             {
                 return Results.NotFound("查无此歌");
@@ -77,7 +75,7 @@ public static class MapInstrunetCommunityEndpoints
             if (context.Votes.Any(i => i.Master == uuid && i.User == sessionUuid))
             {
                 context.Votes.FirstOrDefault(i => i.Master == uuid && i.User == sessionUuid)!.IsUpvote = false;
-                context.SaveChanges();
+                await context.SaveChangesAsync();
                 return Results.Ok();
             }
 
@@ -85,7 +83,7 @@ public static class MapInstrunetCommunityEndpoints
             {
                 Uuid = Guid.NewGuid().ToString(), IsUpvote = false, Master = uuid, User = sessionUuid
             });
-            context.SaveChanges();
+            await context.SaveChangesAsync();
             return Results.Ok();
         });
         return app; 
@@ -93,7 +91,7 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder ResetVote(this RouteGroupBuilder app)
     {
-        app.MapPost("/reset-vote", async (HttpContext httpContext) =>
+        app.MapPost("/reset-vote", async (HttpContext httpContext, InstrunetDbContext context) =>
         {
             var userUuid = httpContext.Session.GetString("uuid");
             if (string.IsNullOrWhiteSpace(userUuid))
@@ -103,7 +101,6 @@ public static class MapInstrunetCommunityEndpoints
             using var reader = new StreamReader(httpContext.Request.Body);
             var uuid = await reader.ReadToEndAsync(); 
 
-            using var context = new InstrunetDbContext();
             if (!context.Votes.Any(i => i.Master == uuid && i.User == userUuid))
             {
                 return Results.NotFound(); 
@@ -117,7 +114,7 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder HasVoted(this RouteGroupBuilder app)
     {
-        app.MapGet("/hasVoted", (string uuid, HttpContext httpContext) =>
+        app.MapGet("/hasVoted", (string uuid, HttpContext httpContext, InstrunetDbContext context) =>
         {
             var userUuid = httpContext.Session.GetString("uuid"); 
             if (string.IsNullOrWhiteSpace(userUuid))
@@ -125,7 +122,6 @@ public static class MapInstrunetCommunityEndpoints
                 return Results.BadRequest(); 
             }
 
-            using var context = new InstrunetDbContext();
             var vote = context.Votes.FirstOrDefault(i => i.Master == uuid && i.User == userUuid);
             return vote switch
             {
@@ -139,9 +135,8 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder GetVote(this RouteGroupBuilder app)
     {
-        app.MapGet("/getVote", (string uuid) =>
+        app.MapGet("/getVote", (string uuid, InstrunetDbContext context) =>
         {
-            using var context = new InstrunetDbContext(); 
             if (context.Votes.Count(i => i.Master == uuid && i.IsUpvote) -
                 context.Votes.Count(i => i.Master == uuid && !i.IsUpvote) <= -10)
             {
@@ -158,9 +153,8 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder PostComment(this RouteGroupBuilder app)
     {
-        app.MapPost("/postComment", ([FromBody] PostCommentPayload postCommentPayload, HttpContext httpContext) =>
+        app.MapPost("/postComment", ([FromBody] PostCommentPayload postCommentPayload, HttpContext httpContext, InstrunetDbContext context) =>
         {
-            using var context = new InstrunetDbContext();
             var sessionUuid = httpContext.Session.GetString("uuid");
             if (string.IsNullOrEmpty(sessionUuid))
             {
@@ -194,9 +188,8 @@ public static class MapInstrunetCommunityEndpoints
 
     public static RouteGroupBuilder GetComment(this RouteGroupBuilder app)
     {
-        app.MapGet("/getComment", (string uuid) =>
+        app.MapGet("/getComment", (string uuid, InstrunetDbContext context) =>
         {
-            using var context = new InstrunetDbContext();
             return Results.Json(context.Comments.Where(i => i.Master == uuid).ToList().OrderByDescending(i=>DateTimeOffset.FromUnixTimeMilliseconds((long)i.Date) )); 
         });
         return app;
