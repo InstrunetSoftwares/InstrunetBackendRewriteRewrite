@@ -52,7 +52,12 @@ internal class Program
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
                                 using var client = new HttpClient();
-                                using var res = client.PostAsync($"http://andyxie.cn:8200/api/process?kind=" + newItem.Kind, new MultipartFormDataContent(), newItem.CancellationToken.Token).GetAwaiter().GetResult();
+                                using var res = client.PostAsync($"http://andyxie.cn:8200/api/process?key={new Func<string>(() => {
+                                    using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
+                                    using var ms = new  MemoryStream();
+                                    s.CopyTo(ms);
+                                    return Encoding.UTF8.GetString(ms.ToArray()); 
+                                })()}&kind=" + newItem.Kind, new MultipartFormDataContent(), newItem.CancellationToken.Token).GetAwaiter().GetResult();
                                 if (!res.IsSuccessStatusCode)
                                 {
                                     return; 

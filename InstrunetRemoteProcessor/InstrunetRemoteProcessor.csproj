@@ -21,4 +21,8 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <EmbeddedResource Include="PROCESS_KEY" />
+    </ItemGroup>
+
 </Project>
