@@ -43,12 +43,14 @@ internal class Program
         var queue = new ObservableCollection<QueueContext>();
         queue.CollectionChanged += (_, e) =>
         {
+            Console.WriteLine("Queue changed. ");
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
                     Task t = new Task( () =>
                         {
+                            Console.WriteLine("Task Fired. ");
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
                                 using var client = new HttpClient();
@@ -63,6 +65,7 @@ internal class Program
                                 using var res =  client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}", formContent , newItem.CancellationToken.Token).GetAwaiter().GetResult();
                                 if (!res.IsSuccessStatusCode)
                                 {
+                                    Console.WriteLine($"{res.StatusCode}: {res.ReasonPhrase}");
                                     return; 
                                 }
 
