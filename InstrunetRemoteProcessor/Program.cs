@@ -3,13 +3,14 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-
+builder.Services.Configure<KestrelServerOptions>(o=>o.Limits.MaxRequestBodySize = int.MaxValue);
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -22,8 +23,6 @@ var manifestResourceStream = Assembly.GetExecutingAssembly().GetManifestResource
 var key = manifestResourceStream.EncodeToString(); 
 manifestResourceStream?.Dispose();
 Console.WriteLine($"Loaded key: {key}");
-app.UseRouting();
-app.UseWebSockets(); 
 app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromForm] IFormFile stuff, int kind) =>
 {
     if (remoteKey != key)

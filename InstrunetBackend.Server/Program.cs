@@ -47,17 +47,20 @@ internal class Program
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
-                    Task t = new Task(() =>
+                    Task t = new Task( () =>
                         {
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
                                 using var client = new HttpClient();
-                                using var res = client.PostAsync($"http://andyxie.cn:8201/api/process?key={new Func<string>(() => {
-                                    using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
-                                    using var ms = new  MemoryStream();
-                                    s.CopyTo(ms);
-                                    return Encoding.UTF8.GetString(ms.ToArray()); 
-                                })()}&kind=" + newItem.Kind, new MultipartFormDataContent(), newItem.CancellationToken.Token).GetAwaiter().GetResult();
+                                client.Timeout = TimeSpan.FromMinutes(60); 
+                                client.BaseAddress = new Uri("http://andyxie.cn:8201"); 
+                                using var formContent = new MultipartFormDataContent(); 
+                                formContent.Add(new ByteArrayContent(newItem.File), "stuff", "uploadfile");
+                                using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
+                                using var keyMs = new  MemoryStream();
+                                s.CopyToAsync(keyMs);
+                                var key =  Encoding.UTF8.GetString(keyMs.ToArray()); 
+                                using var res =  client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}", formContent , newItem.CancellationToken.Token).GetAwaiter().GetResult();
                                 if (!res.IsSuccessStatusCode)
                                 {
                                     return; 
