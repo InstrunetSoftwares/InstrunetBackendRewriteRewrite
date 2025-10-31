@@ -20,7 +20,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var manifestResourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetRemoteProcessor.PROCESS_KEY");
-var key = manifestResourceStream.EncodeToString(); 
+var key = manifestResourceStream.EncodeToString().Trim(); 
 manifestResourceStream?.Dispose();
 Console.WriteLine($"Loaded key: {key}");
 app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromForm] IFormFile stuff, int kind) =>

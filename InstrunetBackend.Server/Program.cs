@@ -54,7 +54,7 @@ internal class Program
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
                                 using var client = new HttpClient();
-                                client.Timeout = TimeSpan.FromMinutes(60); 
+                                client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; 
                                 client.BaseAddress = new Uri("http://andyxie.cn:8201"); 
                                 using var formContent = new MultipartFormDataContent(); 
                                 formContent.Add(new ByteArrayContent(newItem.File), "stuff", "uploadfile");
