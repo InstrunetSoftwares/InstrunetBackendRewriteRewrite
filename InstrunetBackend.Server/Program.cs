@@ -51,110 +51,14 @@ internal class Program
                         {
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
-                                if (newItem.File.Length == 0)
+                                using var client = new HttpClient();
+                                using var res = client.PostAsync($"http://andyxie.cn:8200/api/process?kind=" + newItem.Kind, new MultipartFormDataContent(), newItem.CancellationToken.Token).GetAwaiter().GetResult();
+                                if (!res.IsSuccessStatusCode)
                                 {
-                                    return;
+                                    return; 
                                 }
 
-                                var modelName = "";
-                                switch (newItem.Kind)
-                                {
-                                    case 0:
-                                        modelName = "UVR-MDX-NET-Inst_HQ_4.onnx";
-                                        break;
-                                    case 1:
-                                        modelName = "UVR_MDXNET_KARA_2.onnx";
-                                        break;
-                                    case 2:
-                                        modelName = "UVR_MDXNET_KARA.onnx";
-                                        break;
-                                    case 3:
-                                        modelName = "kuielab_a_bass.onnx";
-                                        break;
-                                    case 4:
-                                        // Drums
-                                        modelName = "htdemucs_ft.yaml";
-                                        break;
-                                    case 5:
-                                        modelName = "UVR_MDXNET_Main.onnx";
-                                        break;
-                                    case 6:
-                                        modelName = "htdemucs_6s.yaml";
-                                        break;
-                                }
-
-                                // Write file to disk. 
-                                Directory.CreateDirectory("./tmp/instrunet/pre-process");
-                                var fileStream =
-                                    File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                                fileStream.Write(newItem.File, 0, newItem.File.Length);
-                                fileStream.Dispose();
-
-                                var p = new Process();
-                                p.StartInfo.FileName = "audio-separator";
-                                p.StartInfo.WorkingDirectory =
-                                    Directory.GetCurrentDirectory();
-                                p.StartInfo.Arguments = newItem.Kind == 6
-                                    ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem guitar"
-                                    : newItem.Kind == 4
-                                        ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem drums"
-                                        : $"./tmp/instrunet/pre-process/{newItem.Uuid} --model_filename {modelName} --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir ./tmp/instrunet/post-process";
-                                p.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
-                                p.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
-                                p.Start();
-                                while (!p.HasExited)
-                                {
-                                    if (newItem.CancellationToken.IsCancellationRequested)
-                                    {
-                                        p.Kill();
-                                        p.Dispose();
-                                        Console.WriteLine("Cancelled");
-                                        return;
-                                    }
-
-                                    Task.Delay(500).GetAwaiter().GetResult();
-                                }
-
-                                File.Delete($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                                if (p.ExitCode != 0)
-                                {
-                                    p.Dispose();
-                                    return;
-                                }
-
-                                p.Dispose();
-                                var fileName = "";
-                                switch (newItem.Kind)
-                                {
-                                    case 0:
-                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR-MDX-NET-Inst_HQ_4.mp3";
-                                        break;
-                                    case 1:
-                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR_MDXNET_KARA_2.mp3";
-                                        break;
-                                    case 2:
-                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_KARA.mp3";
-                                        break;
-                                    case 3:
-                                        fileName = $"{newItem.Uuid}_(Bass)_kuielab_a_bass.mp3";
-                                        break;
-                                    case 4:
-                                        fileName = $"{newItem.Uuid}_(Drums)_htdemucs_ft.mp3";
-                                        break;
-                                    case 5:
-
-                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_Main.mp3";
-                                        break;
-                                    case 6:
-                                        fileName = $"{newItem.Uuid}_(Guitar)_htdemucs_6s.mp3";
-                                        break;
-                                }
-
-                                var processedFileStream = File.OpenRead($"./tmp/instrunet/post-process/{fileName}");
-                                var ms = new MemoryStream();
-                                processedFileStream.CopyTo(ms);
-                                processedFileStream.Dispose();
-
+                                var ms = res.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); 
                                 try
                                 {
                                     using var dbContext = new InstrunetDbContext();
@@ -167,13 +71,12 @@ internal class Program
                                         Email = newItem.Email,
                                         Albumcover = newItem.AlbumCover,
                                         Artist = newItem.Artist,
-                                        Databinary = ms.ToArray(),
+                                        Databinary = ms,
                                         Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
                                         Kind = newItem.Kind,
                                         User = newItem.UserUuid
                                     });
                                     dbContext.SaveChanges();
-                                    ms.Dispose();
                                 }
                                 catch (DbUpdateException dbUpdateException)
                                 {
