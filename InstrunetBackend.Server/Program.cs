@@ -62,6 +62,7 @@ internal class Program
                                 using var keyMs = new  MemoryStream();
                                 s.CopyToAsync(keyMs);
                                 var key =  Encoding.UTF8.GetString(keyMs.ToArray()); 
+                                Console.WriteLine($"Loaded key: {key}");
                                 using var res =  client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}", formContent , newItem.CancellationToken.Token).GetAwaiter().GetResult();
                                 if (!res.IsSuccessStatusCode)
                                 {
