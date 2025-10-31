@@ -429,19 +429,11 @@ internal class Program
 
         app.UseAuthorization();
         app.UseSession();
-
-
-        // Datas
-        var cache = new List<QueueContext>();
-        Timer timer = new Timer((e) =>
-        {
-            cache.Clear();
-            GC.Collect(); 
-        }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
+        
         
 
         app.MapAllProcessingEndpoints(res.Item1)
-            .MapAllGetterEndpoints(cache)
+            .MapAllGetterEndpoints()
             .MapAllJustTalkEndpoints(res.Item3)
             .MapAllInstrunetCommunityEndpoints()
             .MapAllUserEndpoints()
