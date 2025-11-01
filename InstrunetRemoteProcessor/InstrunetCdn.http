@@ -1,0 +1,6 @@
+@InstrunetCdn_HostAddress = http://localhost:5272
+
+GET {{InstrunetCdn_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

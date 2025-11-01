@@ -38,6 +38,8 @@
         <EmbeddedResource Remove="lib\LibraryHelper.cs" />
         <None Remove="NcmSecret" />
         <EmbeddedResource Include="NcmSecret" />
+        <None Remove="PROCESS_KEY" />
+        <EmbeddedResource Include="PROCESS_KEY" />
     </ItemGroup>
 
     <ItemGroup>

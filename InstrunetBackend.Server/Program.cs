@@ -43,118 +43,34 @@ internal class Program
         var queue = new ObservableCollection<QueueContext>();
         queue.CollectionChanged += (_, e) =>
         {
+            Console.WriteLine("Queue changed. ");
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
-                    Task t = new Task(() =>
+                    Task t = new Task( () =>
                         {
+                            Console.WriteLine("Task Fired. ");
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
-                                if (newItem.File.Length == 0)
+                                using var client = new HttpClient();
+                                client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; 
+                                client.BaseAddress = new Uri("http://andyxie.cn:8201"); 
+                                using var formContent = new MultipartFormDataContent(); 
+                                formContent.Add(new ByteArrayContent(newItem.File), "stuff", "uploadfile");
+                                using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
+                                using var keyMs = new  MemoryStream();
+                                s.CopyToAsync(keyMs);
+                                var key =  Encoding.UTF8.GetString(keyMs.ToArray()).Trim(); 
+                                Console.WriteLine($"Loaded key: {key}");
+                                using var res =  client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}", formContent , newItem.CancellationToken.Token).GetAwaiter().GetResult();
+                                if (!res.IsSuccessStatusCode)
                                 {
-                                    return;
+                                    Console.WriteLine($"{res.StatusCode}: {res.ReasonPhrase}");
+                                    return; 
                                 }
 
-                                var modelName = "";
-                                switch (newItem.Kind)
-                                {
-                                    case 0:
-                                        modelName = "UVR-MDX-NET-Inst_HQ_4.onnx";
-                                        break;
-                                    case 1:
-                                        modelName = "UVR_MDXNET_KARA_2.onnx";
-                                        break;
-                                    case 2:
-                                        modelName = "UVR_MDXNET_KARA.onnx";
-                                        break;
-                                    case 3:
-                                        modelName = "kuielab_a_bass.onnx";
-                                        break;
-                                    case 4:
-                                        // Drums
-                                        modelName = "htdemucs_ft.yaml";
-                                        break;
-                                    case 5:
-                                        modelName = "UVR_MDXNET_Main.onnx";
-                                        break;
-                                    case 6:
-                                        modelName = "htdemucs_6s.yaml";
-                                        break;
-                                }
-
-                                // Write file to disk. 
-                                Directory.CreateDirectory("./tmp/instrunet/pre-process");
-                                var fileStream =
-                                    File.OpenWrite($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                                fileStream.Write(newItem.File, 0, newItem.File.Length);
-                                fileStream.Dispose();
-
-                                var p = new Process();
-                                p.StartInfo.FileName = "audio-separator";
-                                p.StartInfo.WorkingDirectory =
-                                    Directory.GetCurrentDirectory();
-                                p.StartInfo.Arguments = newItem.Kind == 6
-                                    ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem guitar"
-                                    : newItem.Kind == 4
-                                        ? $"./tmp/instrunet/pre-process/{newItem.Uuid} -m {modelName} --output_format mp3 --output_dir ./tmp/instrunet/post-process --single_stem drums"
-                                        : $"./tmp/instrunet/pre-process/{newItem.Uuid} --model_filename {modelName} --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir ./tmp/instrunet/post-process";
-                                p.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
-                                p.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
-                                p.Start();
-                                while (!p.HasExited)
-                                {
-                                    if (newItem.CancellationToken.IsCancellationRequested)
-                                    {
-                                        p.Kill();
-                                        p.Dispose();
-                                        Console.WriteLine("Cancelled");
-                                        return;
-                                    }
-
-                                    Task.Delay(500).GetAwaiter().GetResult();
-                                }
-
-                                File.Delete($"./tmp/instrunet/pre-process/{newItem.Uuid}");
-                                if (p.ExitCode != 0)
-                                {
-                                    p.Dispose();
-                                    return;
-                                }
-
-                                p.Dispose();
-                                var fileName = "";
-                                switch (newItem.Kind)
-                                {
-                                    case 0:
-                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR-MDX-NET-Inst_HQ_4.mp3";
-                                        break;
-                                    case 1:
-                                        fileName = $"{newItem.Uuid}_(Instrumental)_UVR_MDXNET_KARA_2.mp3";
-                                        break;
-                                    case 2:
-                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_KARA.mp3";
-                                        break;
-                                    case 3:
-                                        fileName = $"{newItem.Uuid}_(Bass)_kuielab_a_bass.mp3";
-                                        break;
-                                    case 4:
-                                        fileName = $"{newItem.Uuid}_(Drums)_htdemucs_ft.mp3";
-                                        break;
-                                    case 5:
-
-                                        fileName = $"{newItem.Uuid}_(Vocals)_UVR_MDXNET_Main.mp3";
-                                        break;
-                                    case 6:
-                                        fileName = $"{newItem.Uuid}_(Guitar)_htdemucs_6s.mp3";
-                                        break;
-                                }
-
-                                var processedFileStream = File.OpenRead($"./tmp/instrunet/post-process/{fileName}");
-                                var ms = new MemoryStream();
-                                processedFileStream.CopyTo(ms);
-                                processedFileStream.Dispose();
-
+                                var ms = res.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); 
                                 try
                                 {
                                     using var dbContext = new InstrunetDbContext();
@@ -167,13 +83,12 @@ internal class Program
                                         Email = newItem.Email,
                                         Albumcover = newItem.AlbumCover,
                                         Artist = newItem.Artist,
-                                        Databinary = ms.ToArray(),
+                                        Databinary = ms,
                                         Epoch = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
                                         Kind = newItem.Kind,
                                         User = newItem.UserUuid
                                     });
                                     dbContext.SaveChanges();
-                                    ms.Dispose();
                                 }
                                 catch (DbUpdateException dbUpdateException)
                                 {
@@ -514,19 +429,11 @@ internal class Program
 
         app.UseAuthorization();
         app.UseSession();
-
-
-        // Datas
-        var cache = new List<QueueContext>();
-        Timer timer = new Timer((e) =>
-        {
-            cache.Clear();
-            GC.Collect(); 
-        }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
+        
         
 
         app.MapAllProcessingEndpoints(res.Item1)
-            .MapAllGetterEndpoints(cache)
+            .MapAllGetterEndpoints()
             .MapAllJustTalkEndpoints(res.Item3)
             .MapAllInstrunetCommunityEndpoints()
             .MapAllUserEndpoints()
