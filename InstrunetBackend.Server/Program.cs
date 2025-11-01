@@ -37,7 +37,7 @@ internal class Program
         set;
     }
 
-    private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>, List<MessageModel>)
+    private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>?, List<MessageModel>)
         Initialize()
     {
         var queue = new ObservableCollection<QueueContext>();
@@ -140,134 +140,6 @@ internal class Program
                     PropertyNameCaseInsensitive = true
                 }) ?? new List<MessageModel>()
             : new List<MessageModel>();
-        var sttQueue = new ObservableCollection<SttProcessContext>();
-        sttQueue.CollectionChanged += (_, e) =>
-        {
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    var newItem = (SttProcessContext)e.NewItems![0]!;
-                    // not done. 
-                    Task t = new Task(() =>
-                    {
-                        var inputDir = Path.Join(Environment.CurrentDirectory, "/tmp/stt/input");
-                        var outputDir = Path.Join(Environment.CurrentDirectory, "/tmp/stt/output");
-                        Directory.CreateDirectory(inputDir);
-                        Directory.CreateDirectory(outputDir);
-
-                        var inputFile = Path.Join(inputDir, $"/{newItem.Uuid}");
-                        File.WriteAllBytes(inputFile, newItem.File);
-
-                        var arg = $"args={inputFile} --model turbo " + new Func<string>(() =>
-                            newItem.Language == LanguageType.Automatic
-                                ? ""
-                                : $"--language {newItem.Language.ToString()}")() + (newItem.CompleteSentence
-                            ? " --initial_prompt \"Keep sentences' integrity. Don't cut the sentence off when it's not finished.\""
-                            : "");
-                        var p = new Process();
-                        p.StartInfo.FileName = OperatingSystem.IsWindows()
-                            ? "C:\\ProgramData\\miniconda3\\envs\\whisper\\Scripts\\whisper.exe"
-                            : "/Users/dt/anaconda3/envs/whisper/bin/whisper";
-                        p.StartInfo.WorkingDirectory = outputDir;
-                        p.StartInfo.Arguments = arg;
-                        p.Start();
-                        while (!p.HasExited)
-                        {
-                            if (newItem.CancellationToken.IsCancellationRequested)
-                            {
-                                p.Kill();
-                                p.Dispose();
-                                Console.WriteLine($"Cancelled stt: {newItem.Email}");
-                                Directory.Delete(outputDir, true);
-                                return;
-                            }
-
-                            Task.Delay(500).GetAwaiter().GetResult();
-                        }
-
-                        p.Dispose();
-                        TarFile.CreateFromDirectory(outputDir, $"{outputDir}/{newItem.Uuid}.tar", false);
-                        using var smtp = new SmtpClient("smtp.qq.com", 587);
-                        smtp.EnableSsl = true;
-                        smtp.Credentials = new NetworkCredential("3095864740@qq.com", new Func<string>(() =>
-                        {
-                            using var stream = Assembly.GetExecutingAssembly()
-                                .GetManifestResourceStream("InstrunetBackend.Server.MAINSECRET"); 
-                            using var mStream =  new MemoryStream();
-                            stream.CopyTo(mStream);
-                            return Encoding.UTF8.GetString(mStream.ToArray());
-                        })());
-                        smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-                        var mailMessage = new MailMessage
-                        {
-                            From = new MailAddress("xiey0@qq.com"),
-                            Subject = "转文本完成",
-                            Attachments =
-                            {
-                                new(new MemoryStream(File.ReadAllBytes($"{outputDir}/{newItem.Uuid}.tar")),
-                                    "结果.tar",
-                                    "application/x-zip-compressed"),
-                            },
-                            Body = "见附件",
-                            IsBodyHtml = true
-                        };
-                        mailMessage.To.Add(new MailAddress(newItem.Email));
-                        try
-                        {
-                            smtp.SendMailAsync(mailMessage).WaitAsync(TimeSpan.FromSeconds(20)).ContinueWith((t) =>
-                            {
-                                var cap = newItem.Email;
-                                Console.WriteLine("Send email timeout! Please check email configuration. " + cap);
-                            }).GetAwaiter().GetResult();
-                        }
-                        catch (SmtpException smtpException)
-                        {
-                            Console.WriteLine(smtpException.Message);
-                        }
-                        finally
-                        {
-                            Directory.Delete(inputDir, true);
-                            Directory.Delete(outputDir, true);
-                        }
-                    });
-                    t.ContinueWith((iT) =>
-                    {
-                        while (true)
-                        {
-                            if (iT.IsCanceled || iT.IsCompleted)
-                            {
-                                sttQueue.RemoveAt(0);
-                                break;
-                            }
-                        }
-                    });
-                    newItem.ProcessTask = t;
-                    if (sttQueue.Count == 1)
-                    {
-                        sttQueue[0].ProcessTask.Start();
-                    }
-
-                    break;
-                case NotifyCollectionChangedAction.Remove:
-                    if (e.OldItems != null)
-                    {
-                        foreach (var eOldItem in e.OldItems)
-                        {
-                            ((SttProcessContext)eOldItem).Dispose();
-                        }
-                    }
-
-                    GC.Collect();
-                    if (sttQueue.Count >= 1)
-                    {
-                        sttQueue[0].ProcessTask.Start();
-                    }
-
-                    break;
-            }
-        };
-
-
         Console.WriteLine("Decompressing libraries");
         Stream? cWebp = null;
         var netEaseService = new NeteaseMusicService();
@@ -351,7 +223,7 @@ internal class Program
         {
             CleanupHandler(_, e);
         };
-        return (queue, sttQueue, messages);
+        return (queue, null, messages);
     }
 
     public static void Main(string[] args)
@@ -429,8 +301,7 @@ internal class Program
 
         app.UseAuthorization();
         app.UseSession();
-        
-        
+
 
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints()
@@ -438,7 +309,7 @@ internal class Program
             .MapAllInstrunetCommunityEndpoints()
             .MapAllUserEndpoints()
             .MapAllPlaylistEndpoints()
-            .MapAllSpeechToTextEndpoints(res.Item2).MapAllUnlockMusicEndpoints();
+            .MapAllUnlockMusicEndpoints();
 
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
