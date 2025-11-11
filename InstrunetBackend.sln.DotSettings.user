@@ -16,9 +16,9 @@
 	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;
   &lt;Assembly Path="/Users/xieyi/.nuget/packages/naudio.lame/2.1.0/lib/netstandard2.0/NAudio.Lame.dll" /&gt;
 &lt;/AssemblyExplorer&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5c625d7c_002Ddcc6_002D4dc4_002Da413_002D435f02adce9e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestMethod1" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;MSTest::3F4C72E9-A61B-48F1-9B7E-98A24AB97A20::net9.0::InstrunetTestProject.Test1.TestMethod1&lt;/TestId&gt;&#xD;
-    &lt;TestId&gt;MSTest::3F4C72E9-A61B-48F1-9B7E-98A24AB97A20::net9.0::InstrunetTestProject.Test1.Test&lt;/TestId&gt;&#xD;
-  &lt;/TestAncestor&gt;&#xD;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5c625d7c_002Ddcc6_002D4dc4_002Da413_002D435f02adce9e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestMethod1" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;MSTest::3F4C72E9-A61B-48F1-9B7E-98A24AB97A20::net9.0::InstrunetTestProject.Test1.TestMethod1&lt;/TestId&gt;
+    &lt;TestId&gt;MSTest::3F4C72E9-A61B-48F1-9B7E-98A24AB97A20::net9.0::InstrunetTestProject.Test1.Test&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

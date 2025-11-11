@@ -16,6 +16,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 
 namespace InstrunetBackend.Server;
 
@@ -231,6 +232,23 @@ internal class Program
         var res = Initialize();
 
         var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddResponseCompression(o =>
+        {
+            o.EnableForHttps = true;
+            o.Providers.Add<BrotliCompressionProvider>();
+            o.Providers.Add<GzipCompressionProvider>();
+            o.MimeTypes =
+                ResponseCompressionDefaults.MimeTypes.Concat(
+                    ["audio/mp3", "image/webp"]);
+        });
+        builder.Services.Configure<BrotliCompressionProviderOptions>(o =>
+        {
+            o.Level = CompressionLevel.SmallestSize;
+        }); 
+        builder.Services.Configure<GzipCompressionProviderOptions>(o =>
+        {
+            o.Level = CompressionLevel.SmallestSize;
+        });
         builder.Services.AddDbContext<InstrunetDbContext>(); 
         // Cors
         builder.Services.AddCors(o =>
@@ -302,7 +320,8 @@ internal class Program
         app.UseAuthorization();
         app.UseSession();
 
-
+        app.UseResponseCompression(); 
+        
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints()
             .MapAllJustTalkEndpoints(res.Item3)
