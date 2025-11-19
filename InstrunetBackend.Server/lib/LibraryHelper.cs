@@ -24,46 +24,45 @@ namespace InstrunetBackend.Server.lib
         public static WebPEncoderBuilder? CreateWebPEncoderBuilder()
         {
             WebPEncoderBuilder? builder = null;
-            // switch (Environment.OSVersion.Platform)
-            // {
-            //     case PlatformID.Win32NT:
-            //         builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-windows-x64/bin/cwebp.exe");
-            //         break;
-            //     case PlatformID.Unix:
-            //         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            //         {
-            //             if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-            //             {
-            //                 builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-arm64/bin/cwebp");
-            //                 break;
-            //             }
-            //
-            //             builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-x86-64/bin/cwebp");
-            //             break;
-            //         }
-            //
-            //         Console.WriteLine("No cwebp for you. ");
-            //         break;
-            //
-            //
-            //     case PlatformID.Other:
-            //         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            //         {
-            //             if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-            //             {
-            //                 builder = new WebPEncoderBuilder(
-            //                     Program.CWebP + "libwebp-1.6.0-linux-aarch64/bin/cwebp");
-            //                 break;
-            //             }
-            //
-            //             builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
-            //             break;
-            //         }
-            //
-            //         Console.WriteLine("No cwebp for you. ");
-            //         break;
-            // }
-            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                    builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-windows-x64/bin/cwebp.exe");
+                    break;
+                case PlatformID.Unix:
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+                        {
+                            builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-arm64/bin/cwebp");
+                            break;
+                        }
+            
+                        builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-mac-x86-64/bin/cwebp");
+                        break;
+                    }
+            
+                    Console.WriteLine("No cwebp for you. ");
+                    break;
+            
+            
+                case PlatformID.Other:
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+                        {
+                            builder = new WebPEncoderBuilder(
+                                Program.CWebP + "libwebp-1.6.0-linux-aarch64/bin/cwebp");
+                            break;
+                        }
+            
+                        builder = new WebPEncoderBuilder(Program.CWebP + "libwebp-1.6.0-linux-x86-64/bin/cwebp");
+                        break;
+                    }
+            
+                    Console.WriteLine("No cwebp for you. ");
+                    break;
+            }
             return builder;
         }
         /// <summary>
