@@ -15,7 +15,7 @@ namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapGetterEndpoints
 {
-    public static WebApplication SongAndPitching(this WebApplication app)
+    public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext> cache)
     {
         app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
         {
@@ -31,11 +31,18 @@ public static class MapGetterEndpoints
                 var dataProcessed = memStream.ToArray();
                 return Task.FromResult(Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: true)); 
             }
-            
+            if (cache.Any(i => i.Uuid == id))
+            {
+                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: true);
+                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
+
+                return Task.FromResult(res);
+            }
 
             if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
+                cache.Add(entry);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
                 return Task.FromResult(Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true));
@@ -47,11 +54,20 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetAlbumCover(this WebApplication app)
+    public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext> cache)
     {
         app.MapGet("/getalbumcover", (string id, InstrunetDbContext context) =>
         {
+            if (cache.Any(i => i.Uuid == id))
+            {
+                var cover = cache.First(i => i.Uuid == id).AlbumCover;
+                if (cover is null)
+                {
+                    return Results.BadRequest();
+                }
 
+                return Results.File(cover, "image/webp", enableRangeProcessing: true);
+            }
             if (!context.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 return Results.BadRequest();
@@ -68,11 +84,25 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetSingleMetadata(this WebApplication app)
+    public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext> cache)
     {
         app.MapGet("/getsingle", (string id, bool? albumCover, InstrunetDbContext context) =>
         {
+            if (cache.Any(i => i.Uuid == id))
+            {
+                if (albumCover.HasValue && albumCover.Value)
+                {
+                    var arrCache = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
+                    var intArrayCache = arrCache?.Select(b => (int)b).ToArray();
 
+                    return Results.Json(new
+                        { albumcover = arrCache == null ? null : new { type = "Buffer", data = intArrayCache } });
+                }
+
+
+                return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
+                    { song_name = i.Name, album_name = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
+            }
             if (context.InstrunetEntries.Any(i => i.Uuid == id))
             {
                 if (albumCover.HasValue && albumCover.Value)
@@ -213,7 +243,7 @@ public static class MapGetterEndpoints
 
     }
 
-    public static WebApplication MapAllGetterEndpoints(this WebApplication app)
+    public static WebApplication MapAllGetterEndpoints(this WebApplication app, List<QueueContext> cache)
     {
         var methods = typeof(MapGetterEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var method in methods)
@@ -228,7 +258,7 @@ public static class MapGetterEndpoints
                     method.Invoke(null, [app]);
                     continue;
                 default:
-                    method.Invoke(null, [app]);
+                    method.Invoke(null, [app, cache]);
                     continue;
             }
         }
