@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
@@ -10,7 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.Configure<KestrelServerOptions>(o=>o.Limits.MaxRequestBodySize = int.MaxValue);
+builder.Services.Configure<KestrelServerOptions>(o=>o.Limits.MaxRequestBodySize = long.MaxValue);
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = long.MaxValue;
+}); 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

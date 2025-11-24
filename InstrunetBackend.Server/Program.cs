@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 
@@ -287,6 +288,10 @@ internal class Program
             o.Cookie.IsEssential = true;
             o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
+        builder.Services.Configure<FormOptions>(o =>
+        {
+            o.MultipartBodyLengthLimit = 1_000_000_000;
+        }); 
 
 
         // Payload size
