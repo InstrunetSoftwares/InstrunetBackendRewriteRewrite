@@ -17,6 +17,23 @@ public static class MapGetterEndpoints
 {
     public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext> cache)
     {
+        app.MapGet("/download", (string id, HttpContext context, InstrunetDbContext dbContext) =>
+        {
+            if (cache.Any(i => i.Uuid == id))
+            {
+                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: false);
+                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
+                return res;
+            }
+            if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
+            {
+                var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
+                cache.Add(entry);
+                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
+                return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: false);
+            }
+            return Results.NotFound();
+        }); 
         app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
         {
             if (pitch.HasValue)

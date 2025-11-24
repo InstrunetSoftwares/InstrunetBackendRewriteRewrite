@@ -39,6 +39,7 @@ internal class Program
         set;
     }
 
+    private static ConsoleService? ConsoleService; 
     private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>?, List<MessageModel>)
         Initialize()
     {
@@ -91,6 +92,7 @@ internal class Program
                                         User = newItem.UserUuid
                                     });
                                     dbContext.SaveChanges();
+                                    ConsoleService?.Add();
                                 }
                                 catch (DbUpdateException dbUpdateException)
                                 {
@@ -333,6 +335,9 @@ internal class Program
             cache.Clear();
             GC.Collect(); 
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
+        
+        ConsoleService = new ConsoleService(res.Item1, cache); 
+        
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
             .MapAllJustTalkEndpoints(res.Item3)
