@@ -258,7 +258,7 @@ internal class Program
         {
             o.AddPolicy("All", p =>
             {
-                p.WithOrigins("http://localhost:5173", "https://andyxie.cn:4000", "http://localhost:3000",
+                p.WithOrigins("https://instrunet.axcwg.cn","https://axcwg.cn","http://localhost:5173", "https://andyxie.cn:4000", "http://localhost:3000",
                         "https://andyxie.cn:4001", "http://localhost:3001")
                     .WithHeaders("Content-Type").AllowCredentials();
             });
