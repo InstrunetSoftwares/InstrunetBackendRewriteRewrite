@@ -52,6 +52,18 @@ public static class MapUserEndpoints
 
     public static WebApplication MapGetUploaded(this WebApplication app)
     {
+        app.MapGet("/get-uploaded-with-meta", (HttpContext context, InstrunetDbContext dbContext) =>
+        {
+            if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid")))
+            {
+                return Results.BadRequest();
+            }
+            return Results.Json(dbContext.InstrunetEntries.Where(i => i.User == context.Session.GetString("uuid"))
+                .Select(i => new
+                {
+                    i.Uuid, i.Epoch, i.SongName, i.Artist, i.AlbumName, i.Kind
+                }).ToList().OrderByDescending(i => i.Epoch.ToString().Length == 10 ? DateTimeOffset.FromUnixTimeSeconds(i.Epoch) :  DateTimeOffset.FromUnixTimeMilliseconds(i.Epoch)));
+        }); 
         app.MapGet("/getUploaded", (HttpContext context, InstrunetDbContext dbContext) =>
         {
             if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid")))

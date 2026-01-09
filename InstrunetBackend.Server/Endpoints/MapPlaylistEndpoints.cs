@@ -24,29 +24,14 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.StatusCode(500);
                 }
 
-                var arr = context.Playlists.Where(i => i.Owner == uuidSession);
-                List<object> sendObj = [];
-                foreach (var obj in arr)
+                var arr = context.Playlists.Where(i => i.Owner == uuidSession).Select(i=>new
                 {
-                    sendObj.Add(new
-                    {
-                        owner = obj.Owner,
-                        @private = obj.Private,
-                        title = obj.Title,
-                        tmb = thumbnail
-                            ? new
-                            {
-                                type = "Buffer",
-                                data = obj.Tmb?.Select(b => (int)b).ToArray()
-                            }
-                            : null,
-                        uuid = obj.Uuid,
-                        content = JsonSerializer.Deserialize<string[]>(obj.Content)
-                    });
-                }
-                //var intArray = arr!.Select(b => (int)b).ToArray();
-
-                return Results.Json(sendObj);
+                    i.Uuid, i.Owner, i.Private, i.Title, i.Content
+                }).AsEnumerable().Select(i=>new
+                {
+                    i.Uuid,i.Owner, i.Private, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
+                });
+                return Results.Json(arr);
             });
             return app;
         }
@@ -55,16 +40,28 @@ namespace InstrunetBackend.Server.Endpoints
         {
             app.MapGet("/playlist", (string playlistUuid, InstrunetDbContext context) =>
             {
-                var arr = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => new
+                var arr = context.Playlists.FirstOrDefault(i => i.Uuid == playlistUuid);
+                if (arr == null)
+                        return Results.NotFound();
+                var listOfSongs = new List<dynamic>(); 
+                foreach (var se in JsonSerializer.Deserialize<string[]>(arr.Content, JsonSerializerOptions.Default)??throw new NullReferenceException())
                 {
-                    OwnerName = context.Users.Where(u => u.Uuid == i.Owner).Select(i => i.Username).AsEnumerable().FirstOrDefault() ?? "DELETED USER",
-                    i.Owner,
-                    i.Title,
-                    playlistuuid = i.Uuid,
-                    content = JsonSerializer.Deserialize<string[]>(i.Content, JsonSerializerOptions.Default),
-                    i.Private
-                }).FirstOrDefault();
-                return Results.Json(arr);
+                    listOfSongs.Add(context.InstrunetEntries.Select(i=>new
+                    {
+                        i.SongName, i.AlbumName, i.Artist, i.Kind, i.Uuid
+                    }).FirstOrDefault(i => i.Uuid == se) ?? throw new FileNotFoundException());
+                }
+                return Results.Ok(new
+                    {
+                        OwnerName = context.Users.Where(u => u.Uuid == arr.Owner).Select(i => i.Username).AsEnumerable()
+                            .FirstOrDefault() ?? "DELETED USER",
+                        arr.Owner,
+                        arr.Title,
+                        playlistuuid = arr.Uuid,
+                        content =  listOfSongs,
+                        arr.Private
+                    });
+                
             });
             return app;
         }
@@ -86,7 +83,7 @@ namespace InstrunetBackend.Server.Endpoints
                 var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Tmb).FirstOrDefault();
                 if (asFile)
                 {
-                    return Results.File(res ?? [], contentType: "image/webp", enableRangeProcessing: true);
+                    return Results.File(res ?? [], contentType: "image/webp", enableRangeProcessing: false);
                 }
 
                 var arr = res?.Select(b => (int)b).ToArray();
@@ -120,11 +117,12 @@ namespace InstrunetBackend.Server.Endpoints
                     return Results.BadRequest();
                 }
 
+                var d = JsonSerializer.Serialize(uploadContent.Content.Select(i => i.Uuid).ToArray()); 
                 try
                 {
                     context.Playlists.Where(i => i.Uuid == uploadContent.PlaylistUuid).ExecuteUpdate(setters =>
-                        setters.SetProperty(i => i.Content,
-                                JsonSerializer.Serialize(uploadContent.Content, JsonSerializerOptions.Web))
+                        setters.SetProperty(i => i.Content, d
+                                )
                             .SetProperty(i => i.Title, uploadContent.Title)
                             .SetProperty(i => i.Private, uploadContent.Private)
                     );
