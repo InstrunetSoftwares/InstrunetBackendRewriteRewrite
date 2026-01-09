@@ -49,6 +49,9 @@ public class ConsoleService
                         }
                         Console.WriteLine($"Count: {cache.Count}. ");
                         break; 
+                    case "daily": 
+                        Console.WriteLine($"Today: {_dailyCounter}");
+                        break; 
                     default:
                         Console.WriteLine("Bad command. ");
                         break; 
