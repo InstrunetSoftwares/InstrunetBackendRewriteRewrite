@@ -118,7 +118,7 @@ public static class MapGetterEndpoints
 
 
                 return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
-                    { song_name = i.Name, album_name = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
+                    { songName = i.Name, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
             }
             if (context.InstrunetEntries.Any(i => i.Uuid == id))
             {
@@ -134,7 +134,7 @@ public static class MapGetterEndpoints
 
 
                 return Results.Json(context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => new
-                { song_name = i.SongName, album_name = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
+                { songName = i.SongName, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
             }
 
 
