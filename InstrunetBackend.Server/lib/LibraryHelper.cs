@@ -20,7 +20,6 @@ namespace InstrunetBackend.Server.lib
         /// langword="null"/>.</remarks>
         /// <returns>A <see cref="WebPEncoderBuilder"/> instance if the current platform and architecture are supported;
         /// otherwise, <see langword="null"/>.</returns>
-        [Pure]
         public static WebPEncoderBuilder? CreateWebPEncoderBuilder()
         {
             WebPEncoderBuilder? builder = null;

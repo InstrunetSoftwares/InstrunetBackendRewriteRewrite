@@ -333,7 +333,7 @@ internal static class MapProcessingEndpoints
                         goto skip_compression;
                     }
 
-                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(80).Size(100000))).Build();
+                    var encoder = builder.CompressionConfig(x => x.Lossy(y => y.Quality(40).Size(75000))).Build();
                     var input = new MemoryStream(sub.albumCover.DataUrlToByteArray());
                     var output = new MemoryStream();
                     encoder.Encode(input, output);
