@@ -17,43 +17,30 @@ public static class MapGetterEndpoints
 {
     public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/download", (string id, HttpContext context, InstrunetDbContext dbContext) =>
-        {
-            if (cache.Any(i => i.Uuid == id))
-            {
-                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: false);
-                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
-                return res;
-            }
-            if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
-            {
-                var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
-                cache.Add(entry);
-                context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
-                return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: false);
-            }
-            return Results.NotFound();
-        }); 
         app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
         {
+            bool IfRange()
+            {
+                return context.Request.Headers.TryGetValue("Range", out _);
+            }
             if (pitch.HasValue)
             {
                 var data = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == id)?.Databinary;
                 if (data is null)
                 {
-                    return Task.FromResult(Results.NotFound()); 
+                    return Results.NotFound(); 
                 }
                 using var memStream = data.ToPitched((double)pitch);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Processed.mp3\"";
                 var dataProcessed = memStream.ToArray();
-                return Task.FromResult(Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: true)); 
+                return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: IfRange()); 
             }
             if (cache.Any(i => i.Uuid == id))
             {
-                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: true);
+                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: IfRange());
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
-                return Task.FromResult(res);
+                return res;
             }
 
             if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
@@ -62,11 +49,11 @@ public static class MapGetterEndpoints
                 cache.Add(entry);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
-                return Task.FromResult(Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: true));
+                return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: IfRange());
             }
 
 
-            return Task.FromResult(Results.NotFound());
+            return Results.NotFound();
         });
         return app;
     }
