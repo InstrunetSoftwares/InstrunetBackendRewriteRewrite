@@ -385,7 +385,7 @@ internal static class MapProcessingEndpoints
             
             
         };
-        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, InstrunetDbContext, IResult>(([FromForm] body, context, dbContext) => _handler((null, body), context?.Session.GetString("uuid"), dbContext))).DisableAntiforgery().RequireRateLimiting("UploadRateLimiting");
+        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, InstrunetDbContext, IResult>(([FromForm] body, context, dbContext) => _handler((null, body), context?.Session.GetString("uuid"), dbContext))).DisableAntiforgery();
         return app;
     }
 
@@ -451,7 +451,7 @@ internal static class MapProcessingEndpoints
             }
 
             return Results.BadRequest("不存在或需要付费");
-        }).RequireRateLimiting("UploadRateLimiting");
+        });
         return app;
     }
 

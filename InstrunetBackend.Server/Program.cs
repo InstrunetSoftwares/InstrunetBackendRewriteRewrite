@@ -97,7 +97,7 @@ internal class Program
                                 }
                                 catch (DbUpdateException dbUpdateException)
                                 {
-                                    Console.WriteLine(dbUpdateException.Message);
+                                    Console.WriteLine(dbUpdateException);
                                 }
                             }
                         },
@@ -265,22 +265,22 @@ internal class Program
             });
         });
         builder.Services.AddSwaggerGen();
-        builder.Services.AddRateLimiter(_ =>
-        {
-            _.AddPolicy<string>("UploadRateLimiting", context =>
-            {
-                var ip = context.Request.Host.Host;
-                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new()
-                {
-                    PermitLimit = 6, AutoReplenishment = true, Window = TimeSpan.FromMinutes(10)
-                });
-            });
-            _.OnRejected = (context, token) =>
-            {
-                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                return ValueTask.CompletedTask;
-            };
-        });
+        //builder.Services.AddRateLimiter(_ =>
+        //{
+        //    _.AddPolicy<string>("UploadRateLimiting", context =>
+        //    {
+        //        var ip = context.Request.Host.Host;
+        //        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new()
+        //        {
+        //            PermitLimit = 6, AutoReplenishment = true, Window = TimeSpan.FromMinutes(10)
+        //        });
+        //    });
+        //    _.OnRejected = (context, token) =>
+        //    {
+        //        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        //        return ValueTask.CompletedTask;
+        //    };
+        //});
 
         // Required for session storage. 
         builder.Services.AddDistributedMemoryCache();
@@ -308,7 +308,7 @@ internal class Program
 
         var app = builder.Build();
 
-        app.UseRateLimiter(); 
+        //app.UseRateLimiter(); 
         
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
@@ -318,10 +318,10 @@ internal class Program
             app.UseSwaggerUI(); 
         }
 
-        if (!app.Environment.IsDevelopment())
-        {
-            app.UseHttpsRedirection();
-        }
+        //if (!app.Environment.IsDevelopment())
+        //{
+        //    app.UseHttpsRedirection();
+        //}
 
         app.UseCors("All");
 
