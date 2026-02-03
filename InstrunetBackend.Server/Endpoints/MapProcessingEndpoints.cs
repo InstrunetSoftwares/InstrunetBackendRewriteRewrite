@@ -1,17 +1,18 @@
-﻿using System.Collections.ObjectModel;
-using System.Net;
-using System.Reflection;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.InteropServices;
-using System.Text;
-using InstrunetBackend.Server.Context;
+﻿using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
 using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
 using Newtonsoft.Json;
+using System.Collections.ObjectModel;
+using System.Net;
+using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
+using System.Runtime.InteropServices;
+using System.Text;
 using WebPWrapper.Encoder;
 
 namespace InstrunetBackend.Server.Endpoints;
@@ -389,41 +390,81 @@ internal static class MapProcessingEndpoints
         return app;
     }
 
-    public static WebApplication NcmUrl(this WebApplication app)
+    public static WebApplication NcmUrl(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
         app.MapPost("/ncm/url", async ([FromBody] NcmUrlContext body, HttpContext context, InstrunetDbContext dbContext) =>
         {
-            HttpClientHandler? handler = null;
-            HttpClient? client = null;
-            try
-            {
-                handler = new HttpClientHandler();
-                handler.UseCookies = false;
-                client = new HttpClient(handler);
-                client.BaseAddress = new Uri("http://localhost:3958");
-                using var message = new HttpRequestMessage(HttpMethod.Get,
-                    "/song/download/url/v1?id=" + body.Id + "&level=hires");
-                // 
+        HttpClientHandler? handler = null;
+        HttpClient? client = null;
+        try
+        {
+            handler = new HttpClientHandler();
+            handler.UseCookies = false;
+            client = new HttpClient(handler);
+            client.BaseAddress = new Uri("http://localhost:3958");
+            using var message = new HttpRequestMessage(HttpMethod.Get,
+                "/song/download/url/v1?id=" + body.Id + "&level=hires");
+            // 
 
-                {
-                    var stream = Assembly.GetExecutingAssembly()
-                        .GetManifestResourceStream("InstrunetBackend.Server.NcmSecret");
-                    var memStream = new MemoryStream();
-                    await stream!.CopyToAsync(memStream);
-                    await stream.DisposeAsync();
-                    var secret = Encoding.UTF8.GetString(memStream.ToArray());
-                    await memStream.DisposeAsync();
-                    message.Headers.Add("Cookie", secret);
-                }
-                var res = await client.SendAsync(message);
-                if (res.IsSuccessStatusCode || res.StatusCode == HttpStatusCode.NotModified)
-                {
-                    dynamic? end = JsonConvert.DeserializeObject<dynamic>(await res.Content.ReadAsStringAsync());
+            {
+                var stream = Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("InstrunetBackend.Server.NcmSecret");
+                var memStream = new MemoryStream();
+                await stream!.CopyToAsync(memStream);
+                await stream.DisposeAsync();
+                var secret = Encoding.UTF8.GetString(memStream.ToArray());
+                await memStream.DisposeAsync();
+                message.Headers.Add("Cookie", secret);
+            }
+            var res = await client.SendAsync(message);
+            if (res.IsSuccessStatusCode || res.StatusCode == HttpStatusCode.NotModified)
+            {
+                dynamic? end = JsonConvert.DeserializeObject<dynamic>(await res.Content.ReadAsStringAsync());
+                dynamic info = JsonConvert.DeserializeObject(
+                        await client.GetStringAsync(
+                            "http://localhost:3958/song/detail?ids=" + body.Id))!;
+                var name = (string)info.songs[0].name;
+                var artist = (string)info.songs[0].ar[0].name; 
+                    #region rep1
+
+                    var rep = dbContext.InstrunetEntries.Any(i => ((i.SongName == name &&
+                                                  i.Artist == artist ||
+                                                 (i.SongName == (
+                                                      ChineseConverter.Convert(name,
+                                                          ChineseConversionDirection
+                                                              .SimplifiedToTraditional)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(artist, ChineseConversionDirection.SimplifiedToTraditional))) ||
+                                                 (i.SongName == (
+                                                      ChineseConverter.Convert(name, ChineseConversionDirection.TraditionalToSimplified)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert(artist, ChineseConversionDirection.TraditionalToSimplified))
+                                                 )) && i.Kind == body.Kind[0]));
+
+                    #endregion
+
+                    #region rep2
+
+                    var rep2 = queue.Any(i => ((i.Name == (string)info.songs[0].name &&
+                                                  i.Artist == ((string)info.songs[0].ar[0].name)) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert((string)info.songs[0].name,
+                                                          ChineseConversionDirection
+                                                              .SimplifiedToTraditional)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert((string)info.songs[0].ar[0].name, ChineseConversionDirection.SimplifiedToTraditional))) ||
+                                                 (i.Name == (
+                                                      ChineseConverter.Convert((string)info.songs[0].name, ChineseConversionDirection.TraditionalToSimplified)) &&
+                                                  i.Artist == (
+                                                      ChineseConverter.Convert((string)info.songs[0].ar[0].name, ChineseConversionDirection.TraditionalToSimplified))
+                                                 )) && i.Kind == body.Kind[0]);
+
+                    #endregion
+
+                    if (rep|| rep2) return Results.InternalServerError("已在数据库中存在");
                     if (end?.data.url != null)
                     {
-                        dynamic info = JsonConvert.DeserializeObject(
-                            await client.GetStringAsync(
-                                "http://localhost:3958/song/detail?ids=" + body.Id))!;
+                        
                         return _handler!((new SubmitContext
                         {
                             fileBinary = await client.GetByteArrayAsync((string)end.data.url),
@@ -473,7 +514,7 @@ internal static class MapProcessingEndpoints
                     continue;
 
                 case "NcmUrl":
-                    method.Invoke(null, [app]);
+                    method.Invoke(null, [app, queue]);
                     break; 
                 case "Queue":
                     method.Invoke(null, [app, queue]);
