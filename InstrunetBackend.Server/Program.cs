@@ -59,7 +59,7 @@ internal class Program
                             {
                                 using var client = new HttpClient();
                                 client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; 
-                                client.BaseAddress = new Uri("http://andyxie.cn:8201"); 
+                                client.BaseAddress = new Uri("http://localhost:8201"); 
                                 using var formContent = new MultipartFormDataContent(); 
                                 formContent.Add(new ByteArrayContent(newItem.File), "stuff", "uploadfile");
                                 using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");

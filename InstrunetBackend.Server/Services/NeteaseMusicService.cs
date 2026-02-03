@@ -13,14 +13,14 @@ public class NeteaseMusicService
         {
             Process = new Process();
             Process.StartInfo.FileName = "cmd"; 
-            Process.StartInfo.Arguments = "/c npx NeteaseCloudMusicApi@latest";
+            Process.StartInfo.Arguments = "/c npx --yes NeteaseCloudMusicApi@latest";
             Process.StartInfo.EnvironmentVariables.Add("PORT", "3958");
             Process.Start();
             return; 
         }
         Process = new Process();
         Process.StartInfo.FileName = "npx";
-        Process.StartInfo.Arguments = "NeteaseCloudMusicApi@latest";
+        Process.StartInfo.Arguments = "--yes NeteaseCloudMusicApi@latest";
         Process.StartInfo.EnvironmentVariables.Add("PORT", "3958");
         Process.Start(); 
     }

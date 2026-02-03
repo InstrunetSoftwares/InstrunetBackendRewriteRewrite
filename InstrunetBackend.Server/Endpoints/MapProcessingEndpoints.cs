@@ -1,4 +1,5 @@
-﻿using InstrunetBackend.Server.Context;
+﻿using System.Collections;
+using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
 using InstrunetBackend.Server.lib;
@@ -64,8 +65,12 @@ internal static class MapProcessingEndpoints
                     });
                 }
 
-                var kind = sub.kind[0]; 
-
+                var kind = sub.kind[0];
+                var l = new List<int> {0, 1, 2, 3, 4, 5, 6,7};
+                if (l.All(i => i != kind))
+                {
+                    return Results.BadRequest("Meet the handbook for API calls. ");
+                }
                     #region rep1
 
                     var rep = context.InstrunetEntries.Count(i => ((i.SongName == (sub.name) &&
@@ -495,8 +500,12 @@ internal static class MapProcessingEndpoints
         });
         return app;
     }
-
-    
+    //TODO
+    // public static WebApplication NcmFile(this WebApplication app, ObservableCollection<QueueContext> queue)
+    // {
+    //     app.MapPost("/api/v1/ncmfile", ).DisableAntiforgery();
+    //     return app; 
+    // }
     public static WebApplication MapAllProcessingEndpoints(this WebApplication app,
         ObservableCollection<QueueContext> queue)
     {

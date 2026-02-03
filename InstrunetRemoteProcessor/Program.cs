@@ -43,6 +43,49 @@ app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromF
         return Results.BadRequest();
     }
 
+    if (kind == 7)
+    {
+        var d = Directory.CreateTempSubdirectory();
+        Console.WriteLine(d.FullName);
+        File.WriteAllBytes(Path.Combine(d.FullName, uuid), newItem);
+        var pP = new Process();
+        pP.StartInfo.FileName = "audio-separator";
+        pP.StartInfo.WorkingDirectory =
+            Directory.GetCurrentDirectory();
+        pP.StartInfo.Arguments = $"{Path.Combine(d.FullName, uuid)} --model_filename UVR_MDXNET_KARA_2.onnx --single_stem Instrumental --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
+        pP.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
+        pP.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
+        pP.Start();
+        await pP.WaitForExitAsync();
+        File.Delete(Path.Combine(d.FullName, uuid));
+        if (pP.ExitCode != 0)
+        {
+            pP.Dispose();
+            return Results.InternalServerError();
+        }
+        pP.Dispose();
+        
+        pP = new Process(); 
+        pP.StartInfo.FileName = "audio-separator";
+        pP.StartInfo.WorkingDirectory =
+            Directory.GetCurrentDirectory();
+        pP.StartInfo.Arguments = $"{Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2.mp3")} --model_filename UVR-MDX-NET-Inst_HQ_4.onnx --single_stem Vocals --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
+        pP.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
+        pP.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
+        pP.Start();
+        await pP.WaitForExitAsync();
+        File.Delete(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2.mp3"));
+        if (pP.ExitCode != 0)
+        {
+            pP.Dispose();
+            return Results.InternalServerError();
+        }
+        pP.Dispose();
+        var processed = File.ReadAllBytes(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
+        File.Delete(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
+        return Results.File(processed);
+        
+    }
     var modelName = "";
     switch (kind)
     {
