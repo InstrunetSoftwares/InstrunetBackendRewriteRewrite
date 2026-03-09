@@ -185,7 +185,7 @@ internal class Program
                 }
 
                 fStream = new FileStream(UM + "um.exe", FileMode.Create);
-                UMStream?.CopyTo(fStream);
+                UMStream.CopyTo(fStream);
             }
             catch (NullReferenceException)
             {

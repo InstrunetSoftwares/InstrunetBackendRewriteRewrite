@@ -28,7 +28,7 @@ public sealed class Test1
     [TestMethod]
     public void Test()
     {
-        // TODO I Dont understand. 
+        // I Dont understand. 
         Environment.CurrentDirectory = "../../../"; 
         Console.WriteLine(Environment.CurrentDirectory);
         MemoryStream Pitch(Stream file, double pitch)

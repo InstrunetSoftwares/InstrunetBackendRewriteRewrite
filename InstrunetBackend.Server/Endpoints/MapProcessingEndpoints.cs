@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
+using AXExpansion.AspNetCore;
 using WebPWrapper.Encoder;
 
 namespace InstrunetBackend.Server.Endpoints;
@@ -391,7 +392,10 @@ internal static class MapProcessingEndpoints
             
             
         };
-        app.MapPost("/submit", new Func<SubmitContext<IFormFile>, HttpContext?, InstrunetDbContext, IResult>(([FromForm] body, context, dbContext) => _handler((null, body), context?.Session.GetString("uuid"), dbContext))).DisableAntiforgery();
+        app.MapPost("/submit", 
+            new Func<SubmitContext<IFormFile>, HttpContext?, InstrunetDbContext, IResult>
+                (([FromForm] body, context, dbContext) => 
+                _handler((null, body), context?.Session.GetString("uuid"), dbContext))).DisableAntiforgery();
         return app;
     }
 
@@ -500,12 +504,51 @@ internal static class MapProcessingEndpoints
         });
         return app;
     }
-    //TODO
-    // public static WebApplication NcmFile(this WebApplication app, ObservableCollection<QueueContext> queue)
-    // {
-    //     app.MapPost("/api/v1/ncmfile", ).DisableAntiforgery();
-    //     return app; 
-    // }
+
+    class NcmFilePayload
+    {
+        public required int Kind { get; set; }
+        public required IFormFile File { get; set; }
+    }
+     public static WebApplication NcmFile(this WebApplication app)
+     {
+         
+         app.MapPost("/api/v1/ncmfile", ([FromForm]NcmFilePayload payload, HttpContext context, InstrunetDbContext dbContext) =>
+         {
+             if (_handler is null)
+             {
+                 throw new Exception("Initialization not complete.");
+             }
+             var content =  payload.File.ReadToByteArray();
+             try
+             {
+                 var dec = LibraryHelper.MusicDecrypt(content);
+                 var tmp = Path.GetTempFileName(); 
+                 File.WriteAllBytes(tmp, dec.data);
+                 var md = TagLib.File.Create(tmp);
+                 return _handler((new SubmitContext
+                 {
+                     name = md.Name,
+                     albumName = md.Tag.Album,
+                     artist = md.Tag.FirstAlbumArtist,
+                     albumCover = "data:image/webp;base64," +
+                                  Convert.ToBase64String(
+                                      md.Tag.Pictures[0].Data.Data),
+                     link = null,
+                     fileBinary = dec.data,
+                     email = dbContext.Users.FirstOrDefault(i=>i.Uuid == context.Session.GetString("uid"))?.Email,
+                     kind = [payload.Kind]
+                 }, null), context.Session.GetString("uid"), dbContext); 
+             }
+             catch (Exception e)
+             {
+                 Console.WriteLine(e);
+                 return Results.BadRequest("解密不成功：格式有误或未知问题");
+             }
+             
+         }).DisableAntiforgery();
+         return app; 
+     }
     public static WebApplication MapAllProcessingEndpoints(this WebApplication app,
         ObservableCollection<QueueContext> queue)
     {

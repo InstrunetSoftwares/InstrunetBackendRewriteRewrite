@@ -1,5 +1,8 @@
-﻿using System.Diagnostics.Contracts;
+﻿using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using AXExpansion.AXHelper.Extensions;
 using FFMpegCore;
 using FFMpegCore.Pipes;
 using NAudio.Wave;
@@ -125,6 +128,35 @@ namespace InstrunetBackend.Server.lib
             var mStreamProcessed = ToPitched(mStream, pitch);
             mStream.Dispose();
             return mStreamProcessed;
+        }
+        
+        public static (byte[] data, string fileName) MusicDecrypt(byte[] ncmFile, string? uploadedFileName = null)
+        {
+            // TODO Environment dependant code
+            var execPath = Path.GetTempFileName();
+            File.WriteAllBytes(execPath, Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("InstrunetBackend.Server.lib.unlock_music.um.exe")?.ReadToByteArray() ?? throw new NullReferenceException());
+            var inputDir = "./tmp/unlock-music/input";
+            var outputDir = "./tmp/unlock-music/output";
+            Directory.CreateDirectory(inputDir);
+            string uuid = Guid.NewGuid().ToString();
+            using var p = new Process();
+            p.StartInfo = new()
+            {
+                FileName = execPath,
+                Arguments = $"-o {outputDir} -i \"{inputDir}/{uuid}_{uploadedFileName}\""
+            };
+            p.Start();
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+            {
+                throw new Exception("Decrypt not success"); 
+            }
+            var fileName = Directory.EnumerateFiles(outputDir).ToList()[0];
+            var f = File.ReadAllBytes(fileName);
+            File.Delete(fileName);
+            File.Delete($"{inputDir}/{uuid}_{uploadedFileName}");
+            return (f, Path.GetFileName(fileName)); 
         }
     }
 }
