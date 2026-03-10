@@ -15,7 +15,9 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using AXExpansion.AspNetCore;
+using TagLib;
 using WebPWrapper.Encoder;
+using File = System.IO.File;
 
 namespace InstrunetBackend.Server.Endpoints;
 
@@ -522,29 +524,33 @@ internal static class MapProcessingEndpoints
              var content =  payload.File.ReadToByteArray();
              try
              {
-                 var dec = LibraryHelper.MusicDecrypt(content);
-                 var tmp = Path.GetTempFileName(); 
+                 var dec = LibraryHelper.MusicDecrypt(content, payload.File.FileName);
+                 var tmp = Path.Join(Path.GetTempPath(), dec.fileName);
                  File.WriteAllBytes(tmp, dec.data);
-                 var md = TagLib.File.Create(tmp);
-                 return _handler((new SubmitContext
+                 var md = TagLib.File.Create(tmp, ReadStyle.Average);
+                 var res = _handler((new SubmitContext
                  {
                      name = md.Name,
                      albumName = md.Tag.Album,
                      artist = md.Tag.FirstAlbumArtist,
-                     albumCover = "data:image/webp;base64," +
+                     albumCover = md.Tag.Pictures.Length == 0 ? null :  "data:image/webp;base64," +
                                   Convert.ToBase64String(
                                       md.Tag.Pictures[0].Data.Data),
                      link = null,
                      fileBinary = dec.data,
-                     email = dbContext.Users.FirstOrDefault(i=>i.Uuid == context.Session.GetString("uid"))?.Email,
+                     email = dbContext.Users.FirstOrDefault(i => i.Uuid == context.Session.GetString("uid"))?.Email,
                      kind = [payload.Kind]
-                 }, null), context.Session.GetString("uid"), dbContext); 
+                 }, null), context.Session.GetString("uid"), dbContext);
+                File.Delete(tmp);
+                 return res;
              }
              catch (Exception e)
              {
                  Console.WriteLine(e);
+
                  return Results.BadRequest("解密不成功：格式有误或未知问题");
              }
+             
              
          }).DisableAntiforgery();
          return app; 

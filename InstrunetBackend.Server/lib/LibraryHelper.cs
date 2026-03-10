@@ -130,32 +130,34 @@ namespace InstrunetBackend.Server.lib
             return mStreamProcessed;
         }
         
-        public static (byte[] data, string fileName) MusicDecrypt(byte[] ncmFile, string? uploadedFileName = null)
+        public static (byte[] data, string fileName)  MusicDecrypt(byte[] ncmFile, string predictFileName)
         {
             // TODO Environment dependant code
             var execPath = Path.GetTempFileName();
             File.WriteAllBytes(execPath, Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("InstrunetBackend.Server.lib.unlock_music.um.exe")?.ReadToByteArray() ?? throw new NullReferenceException());
-            var inputDir = "./tmp/unlock-music/input";
+            var inputFile = Path.Join(Path.GetTempPath(), predictFileName); 
+            File.WriteAllBytes(inputFile, ncmFile);
             var outputDir = "./tmp/unlock-music/output";
-            Directory.CreateDirectory(inputDir);
-            string uuid = Guid.NewGuid().ToString();
             using var p = new Process();
             p.StartInfo = new()
             {
                 FileName = execPath,
-                Arguments = $"-o {outputDir} -i \"{inputDir}/{uuid}_{uploadedFileName}\""
+                Arguments = $"-o {outputDir} -i \"{inputFile}\" --update-metadata"
             };
             p.Start();
             p.WaitForExit();
             if (p.ExitCode != 0)
             {
+                File.Delete(inputFile);
+                Directory.Delete(outputDir, true);
                 throw new Exception("Decrypt not success"); 
             }
             var fileName = Directory.EnumerateFiles(outputDir).ToList()[0];
             var f = File.ReadAllBytes(fileName);
             File.Delete(fileName);
-            File.Delete($"{inputDir}/{uuid}_{uploadedFileName}");
+            File.Delete(inputFile);
+            Directory.Delete(outputDir, true);
             return (f, Path.GetFileName(fileName)); 
         }
     }
