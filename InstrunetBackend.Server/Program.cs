@@ -349,6 +349,14 @@ internal class Program
 
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
+        #region selfcheck
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var conf = scope.ServiceProvider.GetService<IConfiguration>();
+            Console.WriteLine($"Current using NCM Key: {conf?["Ncm"]}");
+        }
+        #endregion
         app.Run();
     }
 
