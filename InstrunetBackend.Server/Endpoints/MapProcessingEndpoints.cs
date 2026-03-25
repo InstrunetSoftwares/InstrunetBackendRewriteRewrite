@@ -403,7 +403,7 @@ internal static class MapProcessingEndpoints
 
     public static WebApplication NcmUrl(this WebApplication app, ObservableCollection<QueueContext> queue)
     {
-        app.MapPost("/ncm/url", async ([FromBody] NcmUrlContext body, HttpContext context, InstrunetDbContext dbContext) =>
+        app.MapPost("/ncm/url", async (IConfiguration config, [FromBody] NcmUrlContext body, HttpContext context, InstrunetDbContext dbContext) =>
         {
         HttpClientHandler? handler = null;
         HttpClient? client = null;
@@ -418,14 +418,7 @@ internal static class MapProcessingEndpoints
             // 
 
             {
-                var stream = Assembly.GetExecutingAssembly()
-                    .GetManifestResourceStream("InstrunetBackend.Server.NcmSecret");
-                var memStream = new MemoryStream();
-                await stream!.CopyToAsync(memStream);
-                await stream.DisposeAsync();
-                var secret = Encoding.UTF8.GetString(memStream.ToArray());
-                await memStream.DisposeAsync();
-                message.Headers.Add("Cookie", secret);
+                message.Headers.Add("Cookie", config["Ncm"]);
             }
             var res = await client.SendAsync(message);
             if (res.IsSuccessStatusCode || res.StatusCode == HttpStatusCode.NotModified)
