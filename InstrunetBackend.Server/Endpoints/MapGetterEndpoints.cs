@@ -62,13 +62,13 @@ public static class MapGetterEndpoints
     {
         app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache imageCache) =>
         {
-            if (imageCache.ImageCacheCollection.FirstOrDefault(i => i.Item1 == id) is var o)
+            if (imageCache.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is {} o)
             {
-                if (o.Item2 is null)
+                if (o.Image is null)
                 {
                     return Results.BadRequest();
                 }
-                return Results.File(o.Item2 ,  enableRangeProcessing: true); 
+                return Results.File(o.Image ,"image/webp",  enableRangeProcessing: true); 
             }
             if (cache.Any(i => i.Uuid == id))
             {
@@ -85,7 +85,7 @@ public static class MapGetterEndpoints
                 return Results.BadRequest();
             }
             var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-            imageCache.ImageCacheCollection.Add((id, coverB));
+            imageCache.ImageCacheCollection.Add(new(){Id=id, Image = coverB});
             
             if (coverB is null)
             {
