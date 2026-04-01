@@ -60,8 +60,16 @@ public static class MapGetterEndpoints
 
     public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context) =>
+        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache imageCache) =>
         {
+            if (imageCache.ImageCacheCollection.FirstOrDefault(i => i.Item1 == id) is var o)
+            {
+                if (o.Item2 is null)
+                {
+                    return Results.BadRequest();
+                }
+                return Results.File(o.Item2 ,  enableRangeProcessing: true); 
+            }
             if (cache.Any(i => i.Uuid == id))
             {
                 var cover = cache.First(i => i.Uuid == id).AlbumCover;
@@ -76,8 +84,9 @@ public static class MapGetterEndpoints
             {
                 return Results.BadRequest();
             }
-
             var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
+            imageCache.ImageCacheCollection.Add((id, coverB));
+            
             if (coverB is null)
             {
                 return Results.BadRequest();
@@ -90,36 +99,15 @@ public static class MapGetterEndpoints
 
     public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/getsingle", (string id, bool? albumCover, InstrunetDbContext context) =>
+        app.MapGet("/getsingle", (string id,  InstrunetDbContext context, SongImageCache imageCache) =>
         {
             if (cache.Any(i => i.Uuid == id))
             {
-                if (albumCover.HasValue && albumCover.Value)
-                {
-                    var arrCache = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-                    var intArrayCache = arrCache?.Select(b => (int)b).ToArray();
-
-                    return Results.Json(new
-                        { albumcover = arrCache == null ? null : new { type = "Buffer", data = intArrayCache } });
-                }
-
-
                 return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
                     { songName = i.Name, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
             }
             if (context.InstrunetEntries.Any(i => i.Uuid == id))
             {
-                if (albumCover.HasValue && albumCover.Value)
-                {
-                    var arr = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-
-                    var intArray = arr?.Select(b => (int)b).ToArray();
-
-                    return Results.Json(new
-                    { albumcover = arr == null ? null : new { type = "Buffer", data = intArray } });
-                }
-
-
                 return Results.Json(context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => new
                 { songName = i.SongName, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
             }

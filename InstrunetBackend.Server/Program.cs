@@ -305,7 +305,7 @@ internal class Program
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
-
+        builder.Services.AddSingleton<SongImageCache>(); 
         var app = builder.Build();
 
         //app.UseRateLimiter(); 
@@ -334,6 +334,7 @@ internal class Program
         Timer timer = new Timer((e) =>
         {
             cache.Clear();
+            app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
             GC.Collect(); 
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
         

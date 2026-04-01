@@ -1,4 +1,7 @@
 ﻿using System.Diagnostics;
+using System.Text.Json;
+using InstrunetBackend.Server;
+using Microsoft.AspNetCore.Mvc;
 using NAudio.Dsp;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -66,5 +69,22 @@ public sealed class Test1
 
 
 
+    }
+
+    [TestMethod]
+    public void CoreSingletonTest()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<SongImageCache>();
+        var app = builder.Build();
+        app.MapGet("/", ([FromServices]SongImageCache cache) =>
+        {
+            Results.Ok(JsonSerializer.Serialize(cache.ImageCacheCollection.Select(o => new
+            {
+                o.Item1, o.Item2
+            }).ToList()));
+        });
+        app.MapPost("/post", (SongImageCache cache) => cache.ImageCacheCollection.Add((Guid.NewGuid().ToString(), [])));
+        app.Run();
     }
 }
