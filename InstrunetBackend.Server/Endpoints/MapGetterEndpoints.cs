@@ -60,7 +60,7 @@ public static class MapGetterEndpoints
 
     public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext> cache)
     {
-        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache imageCache) =>
+        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache imageCache, HttpContext httpContext) =>
         {
             if (imageCache.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is {} o)
             {
@@ -68,6 +68,7 @@ public static class MapGetterEndpoints
                 {
                     return Results.BadRequest();
                 }
+                httpContext.Response.Headers.Add(new("X-Resource-From", "Image Cache"));
                 return Results.File(o.Image ,"image/webp",  enableRangeProcessing: true); 
             }
             if (cache.Any(i => i.Uuid == id))
@@ -77,7 +78,7 @@ public static class MapGetterEndpoints
                 {
                     return Results.BadRequest();
                 }
-
+                httpContext.Response.Headers.Add(new("X-Resource-From", "Large Object Cache"));
                 return Results.File(cover, "image/webp", enableRangeProcessing: true);
             }
             if (!context.InstrunetEntries.Any(i => i.Uuid == id))
@@ -91,7 +92,7 @@ public static class MapGetterEndpoints
             {
                 return Results.BadRequest();
             }
-
+            httpContext.Response.Headers.Add(new("X-Resource-From", "Database"));
             return Results.File(coverB, "image/webp", enableRangeProcessing: true);
         });
         return app;

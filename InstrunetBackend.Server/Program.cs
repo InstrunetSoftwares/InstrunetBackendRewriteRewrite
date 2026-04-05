@@ -147,8 +147,12 @@ internal class Program
             : new List<MessageModel>();
         Console.WriteLine("Decompressing libraries");
         Stream? cWebp = null;
-        var netEaseService = new NeteaseMusicService();
-        var lrcApiService = new LrcApiService();
+        NeteaseMusicService? netEaseService 
+            = new NeteaseMusicService();
+        // = null;
+        LrcApiService? lrcApiService
+            = new LrcApiService();
+        // = null;
         try
         {
             Directory.CreateDirectory(CWebP);
@@ -215,11 +219,11 @@ internal class Program
 
             Console.WriteLine("Cleaning up...");
             File.WriteAllText("./messages.json", JsonSerializer.Serialize(messages));
-            netEaseService.Process?.Kill(true);
-            netEaseService.Process?.Dispose();
+            netEaseService?.Process?.Kill(true);
+            netEaseService?.Process?.Dispose();
             Console.WriteLine("NCM Process killed. ");
-            lrcApiService.Process?.Kill(true);
-            lrcApiService.Process?.Dispose();
+            lrcApiService?.Process?.Kill(true);
+            lrcApiService?.Process?.Dispose();
             Console.WriteLine("LrcApi Process killed. ");
             Console.WriteLine("Cleanup done. ");
         };

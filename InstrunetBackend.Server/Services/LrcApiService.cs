@@ -42,7 +42,9 @@ public class LrcApiService
         {
             Access = FileAccess.ReadWrite,
             Mode = FileMode.Create, 
-            UnixCreateMode = UnixFileMode.GroupExecute | UnixFileMode.OtherExecute | UnixFileMode.UserExecute
+            UnixCreateMode =  UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                              UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                              UnixFileMode.OtherRead | UnixFileMode.OtherExecute
         });
         stream.CopyTo(fStream);
         stream.Dispose();

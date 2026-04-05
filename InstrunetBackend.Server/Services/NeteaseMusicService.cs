@@ -19,9 +19,11 @@ public class NeteaseMusicService
             return; 
         }
         Process = new Process();
-        Process.StartInfo.FileName = "npx";
-        Process.StartInfo.Arguments = "--yes NeteaseCloudMusicApi@latest";
+        Process.StartInfo.UseShellExecute = false; 
+        Process.StartInfo.FileName = "bash";
+        Process.StartInfo.Arguments = "-c \"source ~/.bashrc && pnpm dlx NeteaseCloudMusicApi@latest";
         Process.StartInfo.EnvironmentVariables.Add("PORT", "3958");
+        Process.StartInfo.RedirectStandardInput = false; 
         Process.Start(); 
     }
 }
