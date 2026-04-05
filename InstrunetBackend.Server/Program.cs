@@ -344,7 +344,8 @@ internal class Program
         
         ConsoleService = new ConsoleService(res.Item1, cache,app); 
         
-        app.MapAllProcessingEndpoints(res.Item1)
+        app
+            // .MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
             .MapAllJustTalkEndpoints(res.Item3)
             .MapAllInstrunetCommunityEndpoints()
