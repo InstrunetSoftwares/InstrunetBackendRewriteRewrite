@@ -338,7 +338,7 @@ internal class Program
             GC.Collect(); 
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
         
-        ConsoleService = new ConsoleService(res.Item1, cache); 
+        ConsoleService = new ConsoleService(res.Item1, cache,app); 
         
         app.MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)

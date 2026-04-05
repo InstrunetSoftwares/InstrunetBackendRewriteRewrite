@@ -15,7 +15,7 @@ public class ConsoleService
         _dailyCounter++; 
     }
 
-    public ConsoleService(ObservableCollection<QueueContext> queue, List<QueueContext> cache)
+    public ConsoleService(ObservableCollection<QueueContext> queue, List<QueueContext> cache, WebApplication app)
     {
         Timer t = new Timer();
         t.Interval = 1000;
@@ -50,6 +50,16 @@ public class ConsoleService
                             
                         }
                         Console.WriteLine($"Count: {cache.Count}. ");
+                        ICollection<SongImageCache.CacheEntity>? items = app.Services.GetService<SongImageCache>()?.ImageCacheCollection;
+                        if(items is not null)
+                        {
+                            foreach (var item in items)
+                            {
+                                Console.WriteLine(item.Id);
+                            }
+                            Console.WriteLine($"Image cache count: {items.Count}. ");
+                        }
+                        
                         break; 
                     case "daily": 
                         Console.WriteLine($"Today: {_dailyCounter}");
