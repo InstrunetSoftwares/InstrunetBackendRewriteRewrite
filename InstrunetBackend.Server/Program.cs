@@ -16,6 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using InstrunetBackend.Server.Chatroom;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -257,7 +258,8 @@ internal class Program
         {
             o.Level = CompressionLevel.SmallestSize;
         });
-        builder.Services.AddDbContext<InstrunetDbContext>(); 
+        builder.Services.AddDbContext<InstrunetDbContext>();
+        builder.Services.AddDbContext<ChatroomDbContext>(); 
         // Cors
         builder.Services.AddCors(o =>
         {
@@ -345,13 +347,14 @@ internal class Program
         ConsoleService = new ConsoleService(res.Item1, cache,app); 
         
         app
-            // .MapAllProcessingEndpoints(res.Item1)
+            .MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
             .MapAllJustTalkEndpoints(res.Item3)
             .MapAllInstrunetCommunityEndpoints()
             .MapAllUserEndpoints()
             .MapAllPlaylistEndpoints()
-            .MapAllUnlockMusicEndpoints();
+            .MapAllUnlockMusicEndpoints()
+            .MapAllChatroomEndpoints();
 
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
@@ -361,6 +364,7 @@ internal class Program
         {
             var conf = scope.ServiceProvider.GetService<IConfiguration>();
             Console.WriteLine($"Current using NCM Key: {conf?["Ncm"]}");
+            scope.ServiceProvider.GetService<ChatroomDbContext>()?.Database.Migrate();
         }
         #endregion
         app.Run();
