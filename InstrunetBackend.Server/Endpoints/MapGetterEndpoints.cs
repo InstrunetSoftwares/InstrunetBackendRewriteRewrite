@@ -15,7 +15,7 @@ namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapGetterEndpoints
 {
-    public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext> cache)
+    public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext>? cache)
     {
         app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
         {
@@ -35,7 +35,7 @@ public static class MapGetterEndpoints
                 var dataProcessed = memStream.ToArray();
                 return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: IfRange()); 
             }
-            if (cache.Any(i => i.Uuid == id))
+            if (cache?.Any(i => i.Uuid == id) ?? false)
             {
                 var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: IfRange());
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
@@ -45,8 +45,8 @@ public static class MapGetterEndpoints
 
             if (dbContext.InstrunetEntries.Any(i => i.Uuid == id))
             {
-                var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id)!;
-                cache.Add(entry);
+                var entry = dbContext.InstrunetEntries.First(i => i.Uuid == id);
+                cache?.Add(entry);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
                 return Results.File(entry.Databinary!, "audio/mp3", enableRangeProcessing: IfRange());
@@ -58,11 +58,11 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext> cache)
+    public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext>? cache)
     {
-        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache imageCache, HttpContext httpContext) =>
+        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache? imageCache, HttpContext httpContext) =>
         {
-            if (imageCache.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is {} o)
+            if (imageCache?.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is {} o)
             {
                 if (o.Image is null)
                 {
@@ -71,7 +71,7 @@ public static class MapGetterEndpoints
                 httpContext.Response.Headers.Add(new("X-Resource-From", "Image Cache"));
                 return Results.File(o.Image ,"image/webp",  enableRangeProcessing: true); 
             }
-            if (cache.Any(i => i.Uuid == id))
+            if (cache?.Any(i => i.Uuid == id) ?? false)
             {
                 var cover = cache.First(i => i.Uuid == id).AlbumCover;
                 if (cover is null)
@@ -86,7 +86,7 @@ public static class MapGetterEndpoints
                 return Results.BadRequest();
             }
             var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-            imageCache.ImageCacheCollection.Add(new(){Id=id, Image = coverB});
+            imageCache?.ImageCacheCollection.Add(new(){Id=id, Image = coverB});
             
             if (coverB is null)
             {
@@ -98,11 +98,11 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext> cache)
+    public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext>? cache)
     {
-        app.MapGet("/getsingle", (string id,  InstrunetDbContext context, SongImageCache imageCache) =>
+        app.MapGet("/getsingle", (string id,  InstrunetDbContext context) =>
         {
-            if (cache.Any(i => i.Uuid == id))
+            if (cache?.Any(i => i.Uuid == id) ?? false)
             {
                 return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
                     { songName = i.Name, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
@@ -236,7 +236,7 @@ public static class MapGetterEndpoints
 
     }
 
-    public static WebApplication MapAllGetterEndpoints(this WebApplication app, List<QueueContext> cache)
+    public static WebApplication MapAllGetterEndpoints(this WebApplication app, List<QueueContext>? cache)
     {
         var methods = typeof(MapGetterEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var method in methods)
