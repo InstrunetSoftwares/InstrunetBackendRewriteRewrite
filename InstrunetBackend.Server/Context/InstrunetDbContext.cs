@@ -35,7 +35,7 @@ public partial class InstrunetDbContext : DbContext
             Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("InstrunetBackend.Server.InstrunetDbSecret")!.CopyTo(memstream);
             return Encoding.UTF8.GetString(memstream.ToArray()); 
-        })(), Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.4.3-mysql"));
+        })(), Microsoft.EntityFrameworkCore.ServerVersion.Parse("9.6.0-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
