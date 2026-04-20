@@ -52,4 +52,10 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="CueSharp">
+        <HintPath>liblink\CueSharp\CueSharp.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>
