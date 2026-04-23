@@ -322,7 +322,7 @@ internal class Program
         Timer unused = new Timer((e) =>
         {
             cache.Clear();
-            app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
+            // app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
             GC.Collect(); 
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
         
