@@ -5,6 +5,8 @@ using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Immutable;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Text.Json;
@@ -224,6 +226,50 @@ namespace InstrunetBackend.Server.Endpoints
                 return Results.Unauthorized();
             });
             return app;
+        }
+
+        public static WebApplication MapDownloadPlaylistToCue(this WebApplication app)
+        {
+            app.MapGet("/playlist-cue", (ILogger<WebApplication> log, HttpContext context, InstrunetDbContext db, string uuid) =>
+            {
+                var dbPlaylist = db.Playlists.FirstOrDefault(i => i.Uuid == uuid);
+                if (dbPlaylist is null)
+                {
+                    return Results.NotFound();
+                }
+                var playlist =
+                    JsonSerializer.Deserialize<string[]>(dbPlaylist.Content);
+                if (playlist is null)
+                {
+                    log.LogError("Failed to deserialize playlist: {0}", dbPlaylist.Uuid);
+                    return Results.InternalServerError("Failed to deserialize playlist");
+                }
+                var originals = db.InstrunetEntries.Where(i => playlist.Any(u => u == i.Uuid)).ToImmutableList();
+                using var archiveStream = new MemoryStream();
+                using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create);
+                var cueArchive = archive.CreateEntry($"{dbPlaylist.Title}.cue");
+                var cue = new CueSharp.CueSheet();
+                foreach (var instrunetEntry in originals)
+                {
+                    using var streamAudio =
+                        archive.CreateEntry($"{instrunetEntry.Uuid[..5]}_{instrunetEntry.SongName}.mp3", CompressionLevel.SmallestSize).Open();
+                    if (instrunetEntry.Databinary is null)
+                    {
+                        log.LogError("DataBinary is null for: {0}", instrunetEntry.Uuid);
+                        return Results.InternalServerError();
+                    } 
+                    using var temp = new MemoryStream(instrunetEntry.Databinary);
+                    temp.CopyTo(streamAudio);
+                    cue.AddTrack(new()
+                    {
+                        
+                    });
+                }
+                
+                return Results.Ok();
+            });
+            return app;
+            
         }
 
         public static WebApplication MapAllPlaylistEndpoints(this WebApplication app)
