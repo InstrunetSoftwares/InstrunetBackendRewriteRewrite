@@ -9,8 +9,12 @@ using System.Collections.Immutable;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
+using System.Text;
 using System.Text.Json;
+using AXExpansion;
+using CueSharp;
 using WebPWrapper.Encoder;
+using Index = CueSharp.Index;
 
 namespace InstrunetBackend.Server.Endpoints
 {
@@ -40,18 +44,31 @@ namespace InstrunetBackend.Server.Endpoints
 
         public static WebApplication MapGetPlaylist(this WebApplication app)
         {
-            app.MapGet("/playlist", (string playlistUuid, InstrunetDbContext context) =>
+            app.MapGet("/playlist", (string playlistUuid, InstrunetDbContext context, ILogger<WebApplication> logger) =>
             {
+                
                 var arr = context.Playlists.FirstOrDefault(i => i.Uuid == playlistUuid);
                 if (arr == null)
                         return Results.NotFound();
-                var listOfSongs = new List<dynamic>(); 
-                foreach (var se in JsonSerializer.Deserialize<string[]>(arr.Content, JsonSerializerOptions.Default)??throw new NullReferenceException())
+                var listOfSongs = new List<dynamic>();
+                var deserialized = JsonSerializer.Deserialize<string[]>(arr.Content, JsonSerializerOptions.Default)??throw new NullReferenceException();
+                
+                foreach (var se in deserialized)
                 {
-                    listOfSongs.Add(context.InstrunetEntries.Select(i=>new
+                    var song = context.InstrunetEntries.Select(i => new
                     {
                         i.SongName, i.AlbumName, i.Artist, i.Kind, i.Uuid
-                    }).FirstOrDefault(i => i.Uuid == se) ?? throw new FileNotFoundException());
+                    }).FirstOrDefault(i => i.Uuid == se);
+                    if (song is null)
+                    {
+                        logger.LogWarning("Error on processing playlist: {0}; Skipping this song ({1}) on response and removed this entry in DB. ", playlistUuid, se);
+                        var clone = deserialized.ToList();
+                        clone.Remove(p => p == se);
+                        arr.Content = clone.Serialize();
+                        context.SaveChanges();
+                        continue;
+                    }
+                    listOfSongs.Add(song);
                 }
                 return Results.Ok(new
                     {
@@ -246,27 +263,61 @@ namespace InstrunetBackend.Server.Endpoints
                 }
                 var originals = db.InstrunetEntries.Where(i => playlist.Any(u => u == i.Uuid)).ToImmutableList();
                 using var archiveStream = new MemoryStream();
-                using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create);
-                var cueArchive = archive.CreateEntry($"{dbPlaylist.Title}.cue");
+                var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create, true);
                 var cue = new CueSharp.CueSheet();
-                foreach (var instrunetEntry in originals)
+                for (var index = 0; index < originals.Count; index++)
                 {
+                    var instrunetEntry = originals[index];
                     using var streamAudio =
-                        archive.CreateEntry($"{instrunetEntry.Uuid[..5]}_{instrunetEntry.SongName}.mp3", CompressionLevel.SmallestSize).Open();
+                        archive.CreateEntry($"{instrunetEntry.Uuid[..5]}_{instrunetEntry.SongName}.mp3",
+                            CompressionLevel.SmallestSize).Open();
                     if (instrunetEntry.Databinary is null)
                     {
                         log.LogError("DataBinary is null for: {0}", instrunetEntry.Uuid);
                         return Results.InternalServerError();
-                    } 
+                    }
+
                     using var temp = new MemoryStream(instrunetEntry.Databinary);
                     temp.CopyTo(streamAudio);
+                    
                     cue.AddTrack(new()
                     {
-                        
+                        Comments =
+                        [
+                            instrunetEntry.Uuid
+                        ],
+                        DataFile = new AudioFile($"{instrunetEntry.Uuid[..5]}_{instrunetEntry.SongName}.mp3",
+                            FileType.MP3),
+                        Garbage = new string[]
+                        {
+                        },
+                        Indices = new Index[]
+                        {
+                        },
+                        ISRC = "",
+                        Performer = $"{instrunetEntry.Artist}",
+                        Songwriter = $"{instrunetEntry.Artist}",
+                        Title = $"{instrunetEntry.SongName}",
+                        TrackDataType = DataType.AUDIO,
+                        TrackFlags = new Flags[]
+                        {
+                        },
+                        TrackNumber = index+1,
                     });
                 }
+
+                string cueTempPath = Path.GetTempFileName();
+                cue.SaveCue(cueTempPath, new UTF8Encoding());
+                var fileLines = File.ReadAllLines(cueTempPath).ToList();
+                fileLines.Remove(p => p.Trim() switch 
+                {
+                    {} s=> s.StartsWith("PREGAP") || s.StartsWith("POSTGAP"),
+                });
+                using var cueArchive = archive.CreateEntry($"{dbPlaylist.Title}.cue", CompressionLevel.SmallestSize).Open();
                 
-                return Results.Ok();
+                
+                archive.Dispose();
+                return Results.File(archiveStream.ToArray(), fileDownloadName: $"{dbPlaylist.Title}.zip");
             });
             return app;
             

@@ -27,6 +27,7 @@ public partial class Cue
             },
             Indices = new Index[]
             {
+                
             },
             ISRC = "",
 

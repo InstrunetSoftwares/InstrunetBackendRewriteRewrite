@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AXExpansion" Version="1.0.0" />
+        <PackageReference Include="AXExpansion" Version="1.4.3" />
         <PackageReference Include="AXExpansion.AspNetCore" Version="1.0.0" />
         <PackageReference Include="CHTCHSConv" Version="1.0.0" />
         <PackageReference Include="FFMpegCore" Version="5.2.0" />
