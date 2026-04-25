@@ -271,23 +271,6 @@ internal class Program
             });
         });
         builder.Services.AddSwaggerGen();
-        //builder.Services.AddRateLimiter(_ =>
-        //{
-        //    _.AddPolicy<string>("UploadRateLimiting", context =>
-        //    {
-        //        var ip = context.Request.Host.Host;
-        //        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new()
-        //        {
-        //            PermitLimit = 6, AutoReplenishment = true, Window = TimeSpan.FromMinutes(10)
-        //        });
-        //    });
-        //    _.OnRejected = (context, token) =>
-        //    {
-        //        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        //        return ValueTask.CompletedTask;
-        //    };
-        //});
-
         // Required for session storage. 
         builder.Services.AddDistributedMemoryCache();
         builder.Services.AddSession(o =>
@@ -336,7 +319,7 @@ internal class Program
         app.UseResponseCompression(); 
         
         var cache = new List<QueueContext>();
-        Timer timer = new Timer((e) =>
+        Timer unused = new Timer((e) =>
         {
             cache.Clear();
             // app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
