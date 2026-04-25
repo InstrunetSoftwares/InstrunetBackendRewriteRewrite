@@ -261,7 +261,23 @@ namespace InstrunetBackend.Server.Endpoints
                     log.LogError("Failed to deserialize playlist: {0}", dbPlaylist.Uuid);
                     return Results.InternalServerError("Failed to deserialize playlist");
                 }
-                var originals = db.InstrunetEntries.Where(i => playlist.Any(u => u == i.Uuid)).ToImmutableList();
+
+                IEnumerable<InstrunetEntry> F()
+                {
+                    foreach (var se in playlist)
+                    {
+                        if (db.InstrunetEntries.Find(se) is { } e)
+                            yield return e;
+                        else
+                        {
+                            log.LogWarning("Failed to retrieve song {0} according to playlist {1}; Now removing this entry from playlist.", se, dbPlaylist.Uuid);
+                            db.Playlists.Find(uuid)?.Content = playlist.ToList().RemoveAll(p => p == se).Serialize();
+                            db.SaveChanges();
+                        }
+                    }
+                }
+
+                var originals = F().ToImmutableList();
                 using var archiveStream = new MemoryStream();
                 var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create, true);
                 var cue = new CueSharp.CueSheet();
