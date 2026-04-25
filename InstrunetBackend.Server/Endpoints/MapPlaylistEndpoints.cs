@@ -265,6 +265,7 @@ namespace InstrunetBackend.Server.Endpoints
                 using var archiveStream = new MemoryStream();
                 var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create, true);
                 var cue = new CueSharp.CueSheet();
+                cue.Title = dbPlaylist.Title;
                 for (var index = 0; index < originals.Count; index++)
                 {
                     var instrunetEntry = originals[index];
@@ -291,9 +292,14 @@ namespace InstrunetBackend.Server.Endpoints
                         Garbage = new string[]
                         {
                         },
-                        Indices = new Index[]
-                        {
-                        },
+                        Indices =
+                        [
+                             new()
+                                {
+                                    Frames = 0, Minutes = 0, Number = 1, Seconds = 0
+                                }
+
+                        ],
                         ISRC = "",
                         Performer = $"{instrunetEntry.Artist}",
                         Songwriter = $"{instrunetEntry.Artist}",
@@ -309,12 +315,20 @@ namespace InstrunetBackend.Server.Endpoints
                 string cueTempPath = Path.GetTempFileName();
                 cue.SaveCue(cueTempPath, new UTF8Encoding());
                 var fileLines = File.ReadAllLines(cueTempPath).ToList();
+                File.Delete(cueTempPath);
                 fileLines.Remove(p => p.Trim() switch 
                 {
-                    {} s=> s.StartsWith("PREGAP") || s.StartsWith("POSTGAP"),
+                    {} s=> s.StartsWith("PREGAP") || s.StartsWith("POSTGAP") || s.StartsWith("INDEX 00")
                 });
-                using var cueArchive = archive.CreateEntry($"{dbPlaylist.Title}.cue", CompressionLevel.SmallestSize).Open();
-                
+                using (var cueArchive = archive.CreateEntry($"{dbPlaylist.Title}.cue", CompressionLevel.SmallestSize)
+                           .Open())
+                {
+                    using var writer = new StreamWriter(cueArchive, Encoding.UTF8);
+                    foreach (var fileLine in fileLines)
+                    {
+                        writer.Write($"{fileLine}\n");
+                    }
+                }
                 
                 archive.Dispose();
                 return Results.File(archiveStream.ToArray(), fileDownloadName: $"{dbPlaylist.Title}.zip");
