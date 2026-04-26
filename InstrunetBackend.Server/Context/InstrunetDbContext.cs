@@ -125,6 +125,8 @@ public partial class InstrunetDbContext : DbContext
                 .HasColumnType("text")
                 .HasColumnName("title");
             entity.Property(e => e.Tmb).HasColumnName("tmb");
+            entity.Property(e => e.Created).HasColumnName("Created");
+            entity.Property(e => e.Modified).HasColumnName("Modified");
         });
 
         modelBuilder.Entity<User>(entity =>

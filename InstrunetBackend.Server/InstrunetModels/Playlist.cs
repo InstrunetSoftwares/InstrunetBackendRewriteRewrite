@@ -13,4 +13,6 @@ public class Playlist
     public byte[]? Tmb { get; set; }
 
     public string? Title { get; set; }
+    public DateTime? Created { get; set; }
+    public DateTime? Modified { get; set; }
 }

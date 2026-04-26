@@ -17,6 +17,33 @@ namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapPlaylistEndpoints
 {
+    enum OrderType
+    {
+        TimeDesc,
+        TimeAsc,
+        NameDesc,
+        NameAsc,
+    }
+    public static WebApplication MapPlaylistBrowse(this WebApplication app)
+    {
+        
+        app.MapGet("playlist-browse", (HttpContext c, InstrunetDbContext context, OrderType orderType ) =>
+        {
+            return Results.Ok((orderType switch
+            {
+                OrderType.TimeDesc => context.Playlists.Where(i => i.Content != "[]")
+                    .OrderByDescending(i => i.Modified),
+                OrderType.TimeAsc => context.Playlists.Where(i => i.Content != "[]").OrderBy(i => i.Modified),
+                OrderType.NameDesc => context.Playlists.Where(i => i.Content != "[]").OrderByDescending(i => i.Title),
+                OrderType.NameAsc => context.Playlists.Where(i => i.Content != "[]").OrderBy(i => i.Title),
+                _ => throw new ArgumentOutOfRangeException(nameof(orderType), orderType, null)
+            }).Where(i=>!i.Private).Select(i => new
+            {
+                i.Uuid, i.Owner, i.Private, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
+            }).AsEnumerable().Where(i=> (i.Content?.Length ?? 0) != 0));
+        });
+        return app; 
+    }
     public static WebApplication MapGetPlaylistOwned(this WebApplication app)
     {
         app.MapPost("playlist-owned", (HttpContext httpContext, InstrunetDbContext context, bool thumbnail = true) =>
@@ -133,6 +160,7 @@ public static class MapPlaylistEndpoints
                         )
                         .SetProperty(i => i.Title, uploadContent.Title)
                         .SetProperty(i => i.Private, uploadContent.Private)
+                        .SetProperty(i=>i.Modified, DateTime.Now)
                 );
                 return Results.Ok();
             }
@@ -181,6 +209,7 @@ public static class MapPlaylistEndpoints
             {
                 context.Playlists.Where(i => i.Uuid == uploadContext.PlaylistUuid).ExecuteUpdate(setters =>
                     setters.SetProperty(i => i.Tmb, buffer)
+                        .SetProperty(i=>i.Modified, DateTime.Now)
                 );
                 return Results.Ok();
             }
@@ -197,7 +226,7 @@ public static class MapPlaylistEndpoints
             var uuid = Guid.NewGuid().ToString();
             context.Playlists.Add(new Playlist
             {
-                Uuid = uuid, Content = "[]", Owner = user, Private = false, Title = null, Tmb = null
+                Uuid = uuid, Content = "[]", Owner = user, Private = false, Title = null, Tmb = null, Created = DateTime.Now
             });
             context.SaveChanges();
             return Results.Text(uuid);
