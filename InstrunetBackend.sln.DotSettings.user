@@ -39,7 +39,7 @@
 	
 	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;
   &lt;Assembly Path="/Users/xieyi/.nuget/packages/naudio.lame/2.1.0/lib/netstandard2.0/NAudio.Lame.dll" /&gt;
-  &lt;Assembly Path="/home/xie/InstrunetBackendRewriteRewrite/InstrunetBackend.Server/liblink/CueSharp/CueSharp.dll" /&gt;
+  &lt;Assembly Path="/Users/xieyi/.nuget/packages/sharpziplib/1.4.2/lib/net6.0/ICSharpCode.SharpZipLib.dll" /&gt;
 &lt;/AssemblyExplorer&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5c625d7c_002Ddcc6_002D4dc4_002Da413_002D435f02adce9e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestMethod1" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
