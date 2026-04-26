@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using InstrunetBackend.Server.InstrunetModels;
+﻿using InstrunetBackend.Server.InstrunetModels;
 
 namespace InstrunetBackend.Server.IndependantModels;
 
@@ -22,7 +21,6 @@ public class QueueContext : IDisposable
     public void Dispose()
     {
         while (true)
-        {
             if (ProcessTask.IsCompleted || ProcessTask.IsCanceled)
             {
                 CancellationToken.Dispose();
@@ -30,7 +28,6 @@ public class QueueContext : IDisposable
                 Console.WriteLine($"{Name} disposed successfully. ");
                 break;
             }
-        }
     }
 
     public static implicit operator QueueContext(InstrunetEntry entry)

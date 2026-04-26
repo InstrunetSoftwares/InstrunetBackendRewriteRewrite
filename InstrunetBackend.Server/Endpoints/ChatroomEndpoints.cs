@@ -9,14 +9,15 @@ public static class ChatroomEndpoints
     {
         public IEndpointRouteBuilder MapChatroom()
         {
-            app.MapGet("get", (HttpContext context, ChatroomDbContext db, int maxCount = 20) =>
-            {
-                return Results.Ok(db.Messages.OrderByDescending(o => o.Time).Take(maxCount).AsEnumerable());
-            });
+            app.MapGet("get",
+                (HttpContext context, ChatroomDbContext db, int maxCount = 20) =>
+                {
+                    return Results.Ok(db.Messages.OrderByDescending(o => o.Time).Take(maxCount).AsEnumerable());
+                });
             app.MapGet("long-poll", async (HttpContext context, ChatroomDbContext db, CancellationToken ct) =>
             {
                 var current = db.Messages.OrderByDescending(i => i.Time).FirstOrDefault();
-                Message? toCheck = db.Messages.OrderByDescending(i => i.Time).FirstOrDefault();
+                var toCheck = db.Messages.OrderByDescending(i => i.Time).FirstOrDefault();
                 while (!ct.IsCancellationRequested &&
                        toCheck == current)
                 {
@@ -24,6 +25,7 @@ public static class ChatroomEndpoints
                     db.ChangeTracker.Clear();
                     toCheck = db.Messages.OrderByDescending(i => i.Time).FirstOrDefault();
                 }
+
                 return toCheck;
             }).DisableRequestTimeout();
             app.MapPost("post", async (HttpContext context, ChatroomDbContext db, PostMessageBody body) =>
@@ -32,12 +34,13 @@ public static class ChatroomEndpoints
                 await db.SaveChangesAsync();
                 return Results.Ok();
             });
-            return app; 
+            return app;
         }
+
         public IEndpointRouteBuilder MapAllChatroomEndpoints()
         {
             app.MapGroup("/api/v1/chatroom").MapChatroom();
-            return app; 
+            return app;
         }
     }
 }

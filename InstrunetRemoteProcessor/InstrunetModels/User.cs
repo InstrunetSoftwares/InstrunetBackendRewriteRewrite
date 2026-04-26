@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class User
+public class User
 {
     public string Uuid { get; set; } = null!;
 

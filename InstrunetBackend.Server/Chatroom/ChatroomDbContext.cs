@@ -5,10 +5,10 @@ namespace InstrunetBackend.Server.Chatroom;
 
 public class ChatroomDbContext : DbContext
 {
-    public  virtual DbSet<Message> Messages { get; set; }
+    public virtual DbSet<Message> Messages { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSqlite("Data Source=chatroom.db");
     }
-    
 }

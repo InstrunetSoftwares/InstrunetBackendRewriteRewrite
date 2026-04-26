@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text;
 using InstrunetBackend.Server.InstrunetModels;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
 namespace InstrunetBackend.Server.Context;
 
@@ -30,12 +27,15 @@ public partial class InstrunetDbContext : DbContext
     public virtual DbSet<Vote> Votes { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseMySql(new Func<string>(() => { 
+    {
+        optionsBuilder.UseMySql(new Func<string>(() =>
+        {
             using var memstream = new MemoryStream();
             Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("InstrunetBackend.Server.InstrunetDbSecret")!.CopyTo(memstream);
-            return Encoding.UTF8.GetString(memstream.ToArray()); 
-        })(), Microsoft.EntityFrameworkCore.ServerVersion.Parse("9.6.0-mysql"));
+            return Encoding.UTF8.GetString(memstream.ToArray());
+        })(), ServerVersion.Parse("9.6.0-mysql"));
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

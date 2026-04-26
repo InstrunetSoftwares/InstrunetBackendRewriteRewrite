@@ -1,25 +1,19 @@
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.IO.Compression;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using InstrunetBackend.Server.Chatroom;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.Endpoints;
 using InstrunetBackend.Server.IndependantModels;
+using InstrunetBackend.Server.InstrunetModels;
 using InstrunetBackend.Server.Services;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Diagnostics;
-using System.Formats.Tar;
-using System.IO.Compression;
-using System.Net;
-using System.Net.Mail;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Text.Json;
-using System.Threading.RateLimiting;
-using InstrunetBackend.Server.Chatroom;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.ResponseCompression;
 
 namespace InstrunetBackend.Server;
 
@@ -28,20 +22,19 @@ internal class Program
     public static readonly string LibraryCommon = "./lib-runtime/";
     public static string CWebP = LibraryCommon + "cwebp/";
     public static string UM = LibraryCommon + "unlock-music/";
+
+    private static ConsoleService? ConsoleService;
+
     public static Action<object?, EventArgs>? CleanupHandler
     {
         get
         {
-            while (field is null)
-            {
-                Task.Delay(20).GetAwaiter().GetResult();
-            }
+            while (field is null) Task.Delay(20).GetAwaiter().GetResult();
             return field;
         }
         set;
     }
 
-    private static ConsoleService? ConsoleService; 
     private static (ObservableCollection<QueueContext>, ObservableCollection<SttProcessContext>?, List<MessageModel>)
         Initialize()
     {
@@ -53,33 +46,35 @@ internal class Program
             {
                 case NotifyCollectionChangedAction.Add:
                     var newItem = (QueueContext)e.NewItems![0]!;
-                    Task t = new Task( () =>
+                    var t = new Task(() =>
                         {
                             Console.WriteLine("Task Fired. ");
                             if (!newItem.CancellationToken.IsCancellationRequested)
                             {
                                 using var client = new HttpClient();
-                                client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; 
-                                client.BaseAddress = new Uri("http://localhost:8201"); 
-                                using var formContent = new MultipartFormDataContent(); 
+                                client.Timeout = Timeout.InfiniteTimeSpan;
+                                client.BaseAddress = new Uri("http://localhost:8201");
+                                using var formContent = new MultipartFormDataContent();
                                 formContent.Add(new ByteArrayContent(newItem.File), "stuff", "uploadfile");
-                                using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
-                                using var keyMs = new  MemoryStream();
+                                using var s = Assembly.GetExecutingAssembly()
+                                    .GetManifestResourceStream("InstrunetBackend.Server.PROCESS_KEY");
+                                using var keyMs = new MemoryStream();
                                 s.CopyToAsync(keyMs);
-                                var key =  Encoding.UTF8.GetString(keyMs.ToArray()).Trim(); 
+                                var key = Encoding.UTF8.GetString(keyMs.ToArray()).Trim();
                                 Console.WriteLine($"Loaded key: {key}");
-                                using var res =  client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}", formContent , newItem.CancellationToken.Token).GetAwaiter().GetResult();
+                                using var res = client.PostAsync($"api/process?remoteKey={key}&kind={newItem.Kind}",
+                                    formContent, newItem.CancellationToken.Token).GetAwaiter().GetResult();
                                 if (!res.IsSuccessStatusCode)
                                 {
                                     Console.WriteLine($"{res.StatusCode}: {res.ReasonPhrase}");
-                                    return; 
+                                    return;
                                 }
 
-                                var ms = res.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult(); 
+                                var ms = res.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
                                 try
                                 {
                                     using var dbContext = new InstrunetDbContext();
-                                    dbContext.InstrunetEntries.Add(new()
+                                    dbContext.InstrunetEntries.Add(new InstrunetEntry
                                     {
                                         Uuid = newItem.Uuid,
                                         SongName = newItem.Name,
@@ -103,55 +98,43 @@ internal class Program
                             }
                         },
                         newItem.CancellationToken.Token);
-                    t.ContinueWith((iT) =>
+                    t.ContinueWith(iT =>
                     {
                         while (true)
-                        {
                             if (iT.IsCompleted || iT.IsCanceled)
                             {
                                 queue.RemoveAt(0);
                                 break;
                             }
-                        }
                     });
                     newItem.ProcessTask = t;
-                    if (queue.Count == 1)
-                    {
-                        queue[0].ProcessTask.Start();
-                    }
+                    if (queue.Count == 1) queue[0].ProcessTask.Start();
                     break;
                 case NotifyCollectionChangedAction.Remove:
 
                     if (e.OldItems != null)
-                    {
                         foreach (var eOldItem in e.OldItems)
-                        {
                             ((QueueContext)eOldItem).Dispose();
-                        }
-                    }
 
                     GC.Collect();
-                    if (queue.Count >= 1)
-                    {
-                        queue[0].ProcessTask.Start();
-                    }
+                    if (queue.Count >= 1) queue[0].ProcessTask.Start();
 
                     break;
             }
         };
         var messages = File.Exists("./messages.json")
             ? JsonSerializer.Deserialize<List<MessageModel>>(File.ReadAllText("./messages.json"),
-                new JsonSerializerOptions()
+                new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 }) ?? new List<MessageModel>()
             : new List<MessageModel>();
         Console.WriteLine("Decompressing libraries");
         Stream? cWebp = null;
-        NeteaseMusicService? netEaseService 
+        var netEaseService
             = new NeteaseMusicService();
         // = null;
-        LrcApiService? lrcApiService
+        var lrcApiService
             = new LrcApiService();
         // = null;
         try
@@ -184,10 +167,7 @@ internal class Program
                 var executingAssembly = Assembly.GetExecutingAssembly();
                 UMStream = executingAssembly.GetManifestResourceStream(
                     "InstrunetBackend.Server.lib.unlock_music.um.exe");
-                if (UMStream == null)
-                {
-                    throw new NullReferenceException("Unlock-music stream is null. ");
-                }
+                if (UMStream == null) throw new NullReferenceException("Unlock-music stream is null. ");
 
                 fStream = new FileStream(UM + "um.exe", FileMode.Create);
                 UMStream.CopyTo(fStream);
@@ -213,10 +193,7 @@ internal class Program
 
         CleanupHandler = (_, e) =>
         {
-            if (e is ConsoleCancelEventArgs args)
-            {
-                args.Cancel = true;
-            }
+            if (e is ConsoleCancelEventArgs args) args.Cancel = true;
 
             Console.WriteLine("Cleaning up...");
             File.WriteAllText("./messages.json", JsonSerializer.Serialize(messages));
@@ -229,10 +206,7 @@ internal class Program
             Console.WriteLine("Cleanup done. ");
         };
 
-        Console.CancelKeyPress += (_, e) =>
-        {
-            CleanupHandler(_, e);
-        };
+        Console.CancelKeyPress += (_, e) => { CleanupHandler(_, e); };
         return (queue, null, messages);
     }
 
@@ -250,22 +224,17 @@ internal class Program
                 ResponseCompressionDefaults.MimeTypes.Concat(
                     ["audio/mp3", "image/webp"]);
         });
-        builder.Services.Configure<BrotliCompressionProviderOptions>(o =>
-        {
-            o.Level = CompressionLevel.SmallestSize;
-        }); 
-        builder.Services.Configure<GzipCompressionProviderOptions>(o =>
-        {
-            o.Level = CompressionLevel.SmallestSize;
-        });
+        builder.Services.Configure<BrotliCompressionProviderOptions>(o => { o.Level = CompressionLevel.SmallestSize; });
+        builder.Services.Configure<GzipCompressionProviderOptions>(o => { o.Level = CompressionLevel.SmallestSize; });
         builder.Services.AddDbContext<InstrunetDbContext>();
-        builder.Services.AddDbContext<ChatroomDbContext>(); 
+        builder.Services.AddDbContext<ChatroomDbContext>();
         // Cors
         builder.Services.AddCors(o =>
         {
             o.AddPolicy("All", p =>
             {
-                p.WithOrigins("https://instrunet.axcwg.cn","https://axcwg.cn","http://localhost:5173", "https://andyxie.cn:4000", "http://localhost:3000",
+                p.WithOrigins("https://instrunet.axcwg.cn", "https://axcwg.cn", "http://localhost:5173",
+                        "https://andyxie.cn:4000", "http://localhost:3000",
                         "https://andyxie.cn:4001", "http://localhost:3001")
                     .WithHeaders("Content-Type").AllowCredentials();
             });
@@ -280,10 +249,7 @@ internal class Program
             o.Cookie.IsEssential = true;
             o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
-        builder.Services.Configure<FormOptions>(o =>
-        {
-            o.MultipartBodyLengthLimit = 1_000_000_000;
-        }); 
+        builder.Services.Configure<FormOptions>(o => { o.MultipartBodyLengthLimit = 1_000_000_000; });
 
 
         // Payload size
@@ -297,13 +263,13 @@ internal class Program
         var app = builder.Build();
 
         //app.UseRateLimiter(); 
-        
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
             app.UseSwagger();
-            app.UseSwaggerUI(); 
+            app.UseSwaggerUI();
         }
 
         //if (!app.Environment.IsDevelopment())
@@ -316,18 +282,18 @@ internal class Program
         app.UseAuthorization();
         app.UseSession();
 
-        app.UseResponseCompression(); 
-        
+        app.UseResponseCompression();
+
         var cache = new List<QueueContext>();
-        Timer unused = new Timer((e) =>
+        var unused = new Timer(e =>
         {
             cache.Clear();
             // app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
-            GC.Collect(); 
+            GC.Collect();
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
-        
-        ConsoleService = new ConsoleService(res.Item1, cache,app); 
-        
+
+        ConsoleService = new ConsoleService(res.Item1, cache, app);
+
         app
             .MapAllProcessingEndpoints(res.Item1)
             .MapAllGetterEndpoints(cache)
@@ -340,6 +306,7 @@ internal class Program
 
 
         app.MapGet("/ping", () => Results.Ok("Pong"));
+
         #region selfcheck
 
         using (var scope = app.Services.CreateScope())
@@ -348,8 +315,9 @@ internal class Program
             Console.WriteLine($"Current using NCM Key: {conf?["Ncm"]}");
             scope.ServiceProvider.GetService<ChatroomDbContext>()?.Database.Migrate();
         }
+
         #endregion
+
         app.Run();
     }
-
 }

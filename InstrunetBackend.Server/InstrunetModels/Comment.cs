@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class Comment
+public class Comment
 {
     public string Uuid { get; set; } = null!;
 

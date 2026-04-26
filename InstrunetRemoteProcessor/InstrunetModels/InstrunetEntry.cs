@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class InstrunetEntry
+public class InstrunetEntry
 {
     public string Uuid { get; set; } = null!;
 
@@ -11,22 +11,22 @@ public partial class InstrunetEntry
     public string LinkTo { get; set; } = null!;
 
     /// <summary>
-    /// Binary data of the song. 
+    ///     Binary data of the song.
     /// </summary>
     public byte[]? Databinary { get; set; }
 
     /// <summary>
-    /// Artist wrote the song.
+    ///     Artist wrote the song.
     /// </summary>
     public string? Artist { get; set; }
 
     /// <summary>
-    /// Kind of the instrumental.
+    ///     Kind of the instrumental.
     /// </summary>
     public int? Kind { get; set; }
 
     /// <summary>
-    /// Coverart for the song. 
+    ///     Coverart for the song.
     /// </summary>
     public byte[]? Albumcover { get; set; }
 
@@ -35,7 +35,7 @@ public partial class InstrunetEntry
     public long Epoch { get; set; }
 
     /// <summary>
-    /// Who&apos;d uploaded
+    ///     Who&apos;d uploaded
     /// </summary>
     public string? User { get; set; }
 }

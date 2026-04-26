@@ -11,19 +11,16 @@ public static class MapJustTalkEndpoints
     {
         app.MapGet("/JustTalkLongPolling", (long lastMessageTime, HttpContext httpContext) =>
         {
-            DateTimeOffset lastMessageDate = DateTimeOffset.FromUnixTimeMilliseconds(lastMessageTime);
+            var lastMessageDate = DateTimeOffset.FromUnixTimeMilliseconds(lastMessageTime);
             while (true)
             {
                 httpContext.RequestAborted.ThrowIfCancellationRequested();
-                if (!messages.Any())
-                {
-                    continue;
-                }
+                if (!messages.Any()) continue;
 
                 var afterTime = messages.Where(i =>
-                        (i as MessageModel)!.SentTime.ToUnixTimeMilliseconds() >
+                        i!.SentTime.ToUnixTimeMilliseconds() >
                         lastMessageDate.ToUnixTimeMilliseconds())
-                    .OrderBy(i => (i as MessageModel)!.SentTime).ToList();
+                    .OrderBy(i => i!.SentTime).ToList();
                 if (!afterTime.Any())
                 {
                     Task.Delay(100).GetAwaiter().GetResult();
@@ -46,17 +43,14 @@ public static class MapJustTalkEndpoints
     {
         app.MapPost("/submit", ([FromBody] MessagePayload messagePayload) =>
         {
-            if (messagePayload.Image is null && messagePayload.Text is null)
-            {
-                return Results.BadRequest("ARG_INVALID");
-            }
+            if (messagePayload.Image is null && messagePayload.Text is null) return Results.BadRequest("ARG_INVALID");
 
             if (messagePayload.Image is null && messagePayload.Text is not null)
             {
                 messages.Add(new MessageModel
                 {
                     Modifiers = [], SentTime = DateTimeOffset.Now, Text = messagePayload.Text,
-                    Username = messagePayload.Username, Image = null,
+                    Username = messagePayload.Username, Image = null
                 });
                 return Results.Ok();
             }
@@ -73,7 +67,7 @@ public static class MapJustTalkEndpoints
 
             return Results.BadRequest("ARG_INVALID");
         });
-        return app; 
+        return app;
     }
 
     public static WebApplication MapAllJustTalkEndpoints(this WebApplication app, List<MessageModel> messages)
@@ -81,7 +75,6 @@ public static class MapJustTalkEndpoints
         var justTalkApis = app.MapGroup("/api/v1/justTalk");
         var methods = typeof(MapJustTalkEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var methodInfo in methods)
-        {
             switch (methodInfo.Name)
             {
                 case "MapAllJustTalkEndpoints":
@@ -90,7 +83,6 @@ public static class MapJustTalkEndpoints
                     methodInfo.Invoke(null, [justTalkApis, messages]);
                     continue;
             }
-        }
 
         return app;
     }

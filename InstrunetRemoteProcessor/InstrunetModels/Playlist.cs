@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class Playlist
+public class Playlist
 {
     public string Owner { get; set; } = null!;
 

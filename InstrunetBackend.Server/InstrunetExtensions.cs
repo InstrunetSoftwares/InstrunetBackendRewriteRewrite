@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using NPinyin;
 
 namespace InstrunetBackend.Server;
 
@@ -16,13 +17,14 @@ internal static class InstrunetExtensions
 
     public static byte[] DataUrlToByteArray(this string data)
     {
-        string base64Data = data.Split(',')[1];
+        var base64Data = data.Split(',')[1];
         var binData = Convert.FromBase64String(base64Data);
         return binData;
     }
+
     public static string ToPinyin(this string kanji)
     {
-        return NPinyin.Pinyin.GetPinyin(kanji);
+        return Pinyin.GetPinyin(kanji);
     }
 
     // Bruh. 

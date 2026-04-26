@@ -1,15 +1,14 @@
-using InstrunetBackend.Server.Context;
-using InstrunetBackend.Server.IndependantModels;
-using InstrunetBackend.Server.IndependantModels.HttpPayload;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
-using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
-using Newtonsoft.Json;
-using System.Collections.ObjectModel;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using InstrunetBackend.Server.Context;
+using InstrunetBackend.Server.IndependantModels;
+using InstrunetBackend.Server.IndependantModels.HttpPayload;
 using InstrunetBackend.Server.lib;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
+using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
+using Newtonsoft.Json;
 
 namespace InstrunetBackend.Server.Endpoints;
 
@@ -23,21 +22,21 @@ public static class MapGetterEndpoints
             {
                 return context.Request.Headers.TryGetValue("Range", out _);
             }
+
             if (pitch.HasValue)
             {
                 var data = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == id)?.Databinary;
-                if (data is null)
-                {
-                    return Results.NotFound(); 
-                }
+                if (data is null) return Results.NotFound();
                 using var memStream = data.ToPitched((double)pitch);
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Processed.mp3\"";
                 var dataProcessed = memStream.ToArray();
-                return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: IfRange()); 
+                return Results.File(dataProcessed, "audio/mp3", enableRangeProcessing: IfRange());
             }
+
             if (cache?.Any(i => i.Uuid == id) ?? false)
             {
-                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3", enableRangeProcessing: IfRange());
+                var res = Results.File(cache.First(i => i.Uuid == id).File, "audio/mp3",
+                    enableRangeProcessing: IfRange());
                 context.Response.Headers["Content-Disposition"] = "attachment; filename=\"Music.mp3\"";
 
                 return res;
@@ -60,58 +59,47 @@ public static class MapGetterEndpoints
 
     public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext>? cache)
     {
-        app.MapGet("/getalbumcover", (string id, InstrunetDbContext context, SongImageCache? imageCache, HttpContext httpContext) =>
-        {
-            if (imageCache?.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is {} o)
+        app.MapGet("/getalbumcover",
+            (string id, InstrunetDbContext context, SongImageCache? imageCache, HttpContext httpContext) =>
             {
-                if (o.Image is null)
+                if (imageCache?.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is { } o)
                 {
-                    return Results.BadRequest();
+                    if (o.Image is null) return Results.BadRequest();
+                    httpContext.Response.Headers.Add(
+                        new KeyValuePair<string, StringValues>("X-Resource-From", "Image Cache"));
+                    return Results.File(o.Image, "image/webp", enableRangeProcessing: true);
                 }
-                httpContext.Response.Headers.Add(new("X-Resource-From", "Image Cache"));
-                return Results.File(o.Image ,"image/webp",  enableRangeProcessing: true); 
-            }
-            if (cache?.Any(i => i.Uuid == id) ?? false)
-            {
-                var cover = cache.First(i => i.Uuid == id).AlbumCover;
-                if (cover is null)
+
+                if (cache?.Any(i => i.Uuid == id) ?? false)
                 {
-                    return Results.BadRequest();
+                    var cover = cache.First(i => i.Uuid == id).AlbumCover;
+                    if (cover is null) return Results.BadRequest();
+                    httpContext.Response.Headers.Add(
+                        new KeyValuePair<string, StringValues>("X-Resource-From", "Large Object Cache"));
+                    return Results.File(cover, "image/webp", enableRangeProcessing: true);
                 }
-                httpContext.Response.Headers.Add(new("X-Resource-From", "Large Object Cache"));
-                return Results.File(cover, "image/webp", enableRangeProcessing: true);
-            }
-            if (!context.InstrunetEntries.Any(i => i.Uuid == id))
-            {
-                return Results.BadRequest();
-            }
-            var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-            imageCache?.ImageCacheCollection.Add(new(){Id=id, Image = coverB});
-            
-            if (coverB is null)
-            {
-                return Results.BadRequest();
-            }
-            httpContext.Response.Headers.Add(new("X-Resource-From", "Database"));
-            return Results.File(coverB, "image/webp", enableRangeProcessing: true);
-        });
+
+                if (!context.InstrunetEntries.Any(i => i.Uuid == id)) return Results.BadRequest();
+                var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
+                imageCache?.ImageCacheCollection.Add(new SongImageCache.CacheEntity { Id = id, Image = coverB });
+
+                if (coverB is null) return Results.BadRequest();
+                httpContext.Response.Headers.Add(new KeyValuePair<string, StringValues>("X-Resource-From", "Database"));
+                return Results.File(coverB, "image/webp", enableRangeProcessing: true);
+            });
         return app;
     }
 
     public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext>? cache)
     {
-        app.MapGet("/getsingle", (string id,  InstrunetDbContext context) =>
+        app.MapGet("/getsingle", (string id, InstrunetDbContext context) =>
         {
             if (cache?.Any(i => i.Uuid == id) ?? false)
-            {
                 return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
                     { songName = i.Name, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
-            }
             if (context.InstrunetEntries.Any(i => i.Uuid == id))
-            {
                 return Results.Json(context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => new
-                { songName = i.SongName, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
-            }
+                    { songName = i.SongName, albumName = i.AlbumName, artist = i.Artist, kind = i.Kind }).First());
 
 
             return Results.NotFound();
@@ -123,10 +111,7 @@ public static class MapGetterEndpoints
     {
         app.MapPost("/search_api", ([FromBody] SearchParamsPayload searchParams, InstrunetDbContext context) =>
         {
-            if (searchParams.SearchStr != null)
-            {
-                searchParams.SearchStr = searchParams.SearchStr.Trim();
-            }
+            if (searchParams.SearchStr != null) searchParams.SearchStr = searchParams.SearchStr.Trim();
 
             if (string.IsNullOrEmpty(searchParams.SearchStr))
             {
@@ -145,16 +130,15 @@ public static class MapGetterEndpoints
             else
             {
                 var res = context.InstrunetEntries.Where(i =>
-                    (
-                        i.SongName.Contains(searchParams.SearchStr) ||
-                        i.AlbumName.Contains(searchParams.SearchStr) ||
-                        i.Artist!.Contains(searchParams.SearchStr) ||
-                        i.SongName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                            ChineseConversionDirection.SimplifiedToTraditional)) ||
-                        i.AlbumName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                            ChineseConversionDirection.SimplifiedToTraditional)) ||
-                        i.Artist!.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                            ChineseConversionDirection.SimplifiedToTraditional))) ||
+                    i.SongName.Contains(searchParams.SearchStr) ||
+                    i.AlbumName.Contains(searchParams.SearchStr) ||
+                    i.Artist!.Contains(searchParams.SearchStr) ||
+                    i.SongName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
+                        ChineseConversionDirection.SimplifiedToTraditional)) ||
+                    i.AlbumName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
+                        ChineseConversionDirection.SimplifiedToTraditional)) ||
+                    i.Artist!.Contains(ChineseConverter.Convert(searchParams.SearchStr,
+                        ChineseConversionDirection.SimplifiedToTraditional)) ||
                     i.SongName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
                         ChineseConversionDirection.SimplifiedToTraditional)) ||
                     i.AlbumName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
@@ -189,6 +173,7 @@ public static class MapGetterEndpoints
         });
         return app;
     }
+
     public static WebApplication DownloadNeteaseMusic(this WebApplication app)
     {
         app.MapGroup("/api/ncmstuff").MapGet("downloadmusic", async (string id, HttpContext httpContext) =>
@@ -203,7 +188,7 @@ public static class MapGetterEndpoints
                 using var message = new HttpRequestMessage(HttpMethod.Get,
                     "/song/download/url/v1?id=" + id + "&level=hires");
                 var stream = Assembly.GetExecutingAssembly()
-                        .GetManifestResourceStream("InstrunetBackend.Server.NcmSecret");
+                    .GetManifestResourceStream("InstrunetBackend.Server.NcmSecret");
                 var memStream = new MemoryStream();
                 await stream!.CopyToAsync(memStream);
                 await stream.DisposeAsync();
@@ -213,19 +198,20 @@ public static class MapGetterEndpoints
                 var result = await client.SendAsync(message);
                 if (result.StatusCode is HttpStatusCode.OK or HttpStatusCode.NotModified)
                 {
-                    dynamic? end = JsonConvert.DeserializeObject<dynamic>(await result.Content.ReadAsStringAsync());
+                    var end = JsonConvert.DeserializeObject<dynamic>(await result.Content.ReadAsStringAsync());
                     if (end?.data.url != null)
                     {
                         dynamic info = JsonConvert.DeserializeObject(
                             await http.GetStringAsync(
                                 "http://localhost:3958/song/detail?ids=" + id))!;
-                        var file = Results.File(await http.GetByteArrayAsync((string)end.data.url), "audio/flac", enableRangeProcessing: true);
-                        httpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"target.flac\"";
+                        var file = Results.File(await http.GetByteArrayAsync((string)end.data.url), "audio/flac",
+                            enableRangeProcessing: true);
+                        httpContext.Response.Headers["Content-Disposition"] = "attachment; filename=\"target.flac\"";
                         return file;
                     }
                 }
-                return Results.BadRequest("不存在");
 
+                return Results.BadRequest("不存在");
             }
             catch (Exception ex)
             {
@@ -233,14 +219,12 @@ public static class MapGetterEndpoints
             }
         });
         return app;
-
     }
 
     public static WebApplication MapAllGetterEndpoints(this WebApplication app, List<QueueContext>? cache)
     {
         var methods = typeof(MapGetterEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var method in methods)
-        {
             switch (method.Name)
             {
                 case "MapAllGetterEndpoints":
@@ -254,7 +238,6 @@ public static class MapGetterEndpoints
                     method.Invoke(null, [app, cache]);
                     continue;
             }
-        }
 
         return app;
     }
