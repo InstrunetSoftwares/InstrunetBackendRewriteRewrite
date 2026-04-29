@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.IO.Compression;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -29,18 +30,19 @@ public static class MapPlaylistEndpoints
         
         app.MapGet("playlist-browse", (HttpContext c, InstrunetDbContext context, OrderType orderType ) =>
         {
+            Expression<Func<Playlist, bool>> rule = i =>  (i.Content != "[]") && !i.Private && !string.IsNullOrWhiteSpace(i.Title);
             return Results.Ok((orderType switch
             {
-                OrderType.TimeDesc => context.Playlists.Where(i => i.Content != "[]")
+                OrderType.TimeDesc => context.Playlists.Where(rule)
                     .OrderByDescending(i => i.Modified),
-                OrderType.TimeAsc => context.Playlists.Where(i => i.Content != "[]").OrderBy(i => i.Modified),
-                OrderType.NameDesc => context.Playlists.Where(i => i.Content != "[]").OrderByDescending(i => i.Title),
-                OrderType.NameAsc => context.Playlists.Where(i => i.Content != "[]").OrderBy(i => i.Title),
+                OrderType.TimeAsc => context.Playlists.Where(rule).OrderBy(i => i.Modified),
+                OrderType.NameDesc => context.Playlists.Where(rule).OrderByDescending(i => i.Title),
+                OrderType.NameAsc => context.Playlists.Where(rule).OrderBy(i => i.Title),
                 _ => throw new ArgumentOutOfRangeException(nameof(orderType), orderType, null)
-            }).Where(i=>!i.Private).Select(i => new
+            }).Where(i=> !i.Private || string.IsNullOrWhiteSpace(i.Title)).Select(i => new
             {
                 i.Uuid, i.Owner, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
-            }).AsEnumerable().Where(i=> (i.Content?.Length ?? 0) != 0));
+            }).AsEnumerable());
         });
         return app; 
     }
@@ -124,7 +126,7 @@ public static class MapPlaylistEndpoints
         app.MapGet("/playlist-tmb", (string playlistUuid, InstrunetDbContext context, bool asFile = false) =>
         {
             var res = context.Playlists.Where(i => i.Uuid == playlistUuid).Select(i => i.Tmb).FirstOrDefault();
-            if (asFile) return Results.File(res ?? [], "image/webp", enableRangeProcessing: false);
+            if (asFile) return Results.File(res ?? [], "image/webp", enableRangeProcessing: true);
 
             var arr = res?.Select(b => (int)b).ToArray();
 
