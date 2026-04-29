@@ -39,7 +39,7 @@ public static class MapPlaylistEndpoints
                 _ => throw new ArgumentOutOfRangeException(nameof(orderType), orderType, null)
             }).Where(i=>!i.Private).Select(i => new
             {
-                i.Uuid, i.Owner, i.Private, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
+                i.Uuid, i.Owner, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
             }).AsEnumerable().Where(i=> (i.Content?.Length ?? 0) != 0));
         });
         return app; 
@@ -150,8 +150,7 @@ public static class MapPlaylistEndpoints
             var userUuid = httpContext.Session.GetString("uuid");
             if (string.IsNullOrWhiteSpace(userUuid)) return Results.Unauthorized();
 
-            if (!context.Playlists.Any(i => i.Uuid == uploadContent.PlaylistUuid)) return Results.BadRequest();
-
+            if (!context.Playlists.Any(i => i.Uuid == uploadContent.PlaylistUuid) || uploadContent.Title.IsNullOrWhiteSpace()) return Results.BadRequest();
             var d = JsonSerializer.Serialize(uploadContent.Content.Select(i => i.Uuid).ToArray());
             try
             {
@@ -226,7 +225,7 @@ public static class MapPlaylistEndpoints
             var uuid = Guid.NewGuid().ToString();
             context.Playlists.Add(new Playlist
             {
-                Uuid = uuid, Content = "[]", Owner = user, Private = false, Title = null, Tmb = null, Created = DateTime.Now
+                Uuid = uuid, Content = "[]", Owner = user, Private = false, Title = "未命名播放列表", Tmb = null, Created = DateTime.Now
             });
             context.SaveChanges();
             return Results.Text(uuid);
