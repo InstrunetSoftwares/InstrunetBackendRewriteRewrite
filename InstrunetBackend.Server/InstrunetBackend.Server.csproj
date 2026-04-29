@@ -8,53 +8,53 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AXExpansion" Version="1.4.3" />
-        <PackageReference Include="AXExpansion.AspNetCore" Version="1.0.0" />
-        <PackageReference Include="CHTCHSConv" Version="1.0.0" />
-        <PackageReference Include="FFMpegCore" Version="5.2.0" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+        <PackageReference Include="AXExpansion" Version="1.4.3"/>
+        <PackageReference Include="AXExpansion.AspNetCore" Version="1.0.0"/>
+        <PackageReference Include="CHTCHSConv" Version="1.0.0"/>
+        <PackageReference Include="FFMpegCore" Version="5.2.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-          <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9" />
-        <PackageReference Include="NAudio.Core" Version="2.2.1" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
-        <PackageReference Include="NPinyin.Core" Version="2.1.3" />
-        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
-        <PackageReference Include="TagLibSharp" Version="2.3.0" />
-        <PackageReference Include="WebPWrapper" Version="1.5.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9"/>
+        <PackageReference Include="NAudio.Core" Version="2.2.1"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0"/>
+        <PackageReference Include="NPinyin.Core" Version="2.1.3"/>
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4"/>
+        <PackageReference Include="TagLibSharp" Version="2.3.0"/>
+        <PackageReference Include="WebPWrapper" Version="1.5.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="lib\cwebp\" />
-      <Folder Include="lib\lrcapi\" />
+        <Folder Include="lib\cwebp\"/>
+        <Folder Include="lib\lrcapi\"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="InstrunetDbSecret" />
-      <EmbeddedResource Include="InstrunetDbSecret" />
-        <None Remove="lib" />
-        <EmbeddedResource Include="lib\**\*" />
-        <EmbeddedResource Remove="lib\LibraryHelper.cs" />
-        <None Remove="NcmSecret" />
-        <EmbeddedResource Include="NcmSecret" />
-        <None Remove="PROCESS_KEY" />
-        <EmbeddedResource Include="PROCESS_KEY" />
+        <None Remove="InstrunetDbSecret"/>
+        <EmbeddedResource Include="InstrunetDbSecret"/>
+        <None Remove="lib"/>
+        <EmbeddedResource Include="lib\**\*"/>
+        <EmbeddedResource Remove="lib\LibraryHelper.cs"/>
+        <None Remove="NcmSecret"/>
+        <EmbeddedResource Include="NcmSecret"/>
+        <None Remove="PROCESS_KEY"/>
+        <EmbeddedResource Include="PROCESS_KEY"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Certs\**\*">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
+        <None Update="Certs\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="CueSharp">
-        <HintPath>liblink\CueSharp\CueSharp.dll</HintPath>
-      </Reference>
+        <Reference Include="CueSharp">
+            <HintPath>liblink\CueSharp\CueSharp.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
 </Project>

@@ -1,12 +1,10 @@
+using System.Reflection;
 using InstrunetBackend.Server.Context;
 using InstrunetBackend.Server.IndependantModels.HttpPayload;
 using InstrunetBackend.Server.InstrunetModels;
 using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Win32;
-using System;
-using System.Reflection;
 
 namespace InstrunetBackend.Server.Endpoints;
 
@@ -14,39 +12,28 @@ public static class MapUserEndpoints
 {
     public static WebApplication MapUserApi(this WebApplication app)
     {
-        app.MapGet("/userapi", (HttpContext context, InstrunetDbContext dbContext, string? uuid = null, bool getName = false) =>
-        {
-            var uuidSession = context.Session.GetString("uuid");
-            if (getName)
+        app.MapGet("/userapi",
+            (HttpContext context, InstrunetDbContext dbContext, string? uuid = null, bool getName = false) =>
             {
-                if (string.IsNullOrWhiteSpace(uuid))
+                var uuidSession = context.Session.GetString("uuid");
+                if (getName)
                 {
-                    return Results.BadRequest();
+                    if (string.IsNullOrWhiteSpace(uuid)) return Results.BadRequest();
+
+                    if (!dbContext.Users.Any(i => i.Uuid == uuid)) return Results.NotFound();
+
+                    var res = dbContext.Users.Where(i => i.Uuid == uuid).Select(i => i.Username).First();
+                    return Results.Text(res);
                 }
 
-                if (!dbContext.Users.Any(i => i.Uuid == uuid))
-                {
-                    return Results.NotFound();
-                }
+                if (string.IsNullOrWhiteSpace(uuidSession)) return Results.StatusCode(500);
 
-                var res = dbContext.Users.Where(i => i.Uuid == uuid).Select(i => i.Username).First();
-                return Results.Text(res);
-            }
+                if (!dbContext.Users.Any(i => i.Uuid == uuidSession)) return Results.NotFound();
 
-            if (string.IsNullOrWhiteSpace(uuidSession))
-            {
-                return Results.StatusCode(500);
-            }
-
-            if (!dbContext.Users.Any(i => i.Uuid == uuidSession))
-            {
-                return Results.NotFound();
-            }
-
-            var api = dbContext.Users.Where(i => i.Uuid == uuidSession)
-                .Select(i => new { uuid = uuidSession, username = i.Username, email = i.Email }).First();
-            return Results.Json(api);
-        });
+                var api = dbContext.Users.Where(i => i.Uuid == uuidSession)
+                    .Select(i => new { uuid = uuidSession, username = i.Username, email = i.Email }).First();
+                return Results.Json(api);
+            });
         return app;
     }
 
@@ -54,28 +41,28 @@ public static class MapUserEndpoints
     {
         app.MapGet("/get-uploaded-with-meta", (HttpContext context, InstrunetDbContext dbContext) =>
         {
-            if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid")))
-            {
-                return Results.BadRequest();
-            }
+            if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid"))) return Results.BadRequest();
             return Results.Json(dbContext.InstrunetEntries.Where(i => i.User == context.Session.GetString("uuid"))
                 .Select(i => new
                 {
                     i.Uuid, i.Epoch, i.SongName, i.Artist, i.AlbumName, i.Kind
-                }).ToList().OrderByDescending(i => i.Epoch.ToString().Length == 10 ? DateTimeOffset.FromUnixTimeSeconds(i.Epoch) :  DateTimeOffset.FromUnixTimeMilliseconds(i.Epoch)));
-        }); 
+                }).ToList().OrderByDescending(i =>
+                    i.Epoch.ToString().Length == 10
+                        ? DateTimeOffset.FromUnixTimeSeconds(i.Epoch)
+                        : DateTimeOffset.FromUnixTimeMilliseconds(i.Epoch)));
+        });
         app.MapGet("/getUploaded", (HttpContext context, InstrunetDbContext dbContext) =>
         {
-            if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid")))
-            {
-                return Results.BadRequest();
-            }
+            if (string.IsNullOrWhiteSpace(context.Session.GetString("uuid"))) return Results.BadRequest();
 
             return Results.Json(dbContext.InstrunetEntries.Where(i => i.User == context.Session.GetString("uuid"))
                 .Select(i => new
                 {
                     i.Uuid, i.Epoch
-                }).ToList().OrderByDescending(i => i.Epoch.ToString().Length == 10 ? DateTimeOffset.FromUnixTimeSeconds(i.Epoch) :  DateTimeOffset.FromUnixTimeMilliseconds(i.Epoch)));
+                }).ToList().OrderByDescending(i =>
+                    i.Epoch.ToString().Length == 10
+                        ? DateTimeOffset.FromUnixTimeSeconds(i.Epoch)
+                        : DateTimeOffset.FromUnixTimeMilliseconds(i.Epoch)));
         });
         return app;
     }
@@ -84,16 +71,10 @@ public static class MapUserEndpoints
     {
         app.MapDelete("/delAcc", (HttpContext context, InstrunetDbContext dbContext) =>
         {
-            if (context.Session.GetString("uuid") == null)
-            {
-                return Results.BadRequest();
-            }
+            if (context.Session.GetString("uuid") == null) return Results.BadRequest();
 
             var res = dbContext.Users.Where(i => i.Uuid == context.Session.GetString("uuid")).ExecuteDelete();
-            if (res == 0)
-            {
-                return Results.InternalServerError();
-            }
+            if (res == 0) return Results.InternalServerError();
 
             return Results.Ok();
         });
@@ -116,13 +97,13 @@ public static class MapUserEndpoints
         {
             var userLogin = context.Users.FirstOrDefault(i =>
                 (i.Username == form.Username && i.Password == form.Password.Sha256HexHashString()) ||
-                (i.Email == form.Username && i.Password == (form.Password).Sha256HexHashString()));
+                (i.Email == form.Username && i.Password == form.Password.Sha256HexHashString()));
             if (userLogin != null)
             {
                 httpContext.Session.SetString("uuid", userLogin.Uuid);
                 return Results.Json(new
                 {
-                    uid = userLogin.Uuid,
+                    uid = userLogin.Uuid
                 });
             }
 
@@ -135,19 +116,13 @@ public static class MapUserEndpoints
     {
         app.MapPost("/uploadAvatar", async (HttpContext context, InstrunetDbContext dbContext) =>
         {
-            string? uuidSession = context.Session.GetString("uuid");
-            if (string.IsNullOrWhiteSpace(uuidSession))
-            {
-                return Results.BadRequest();
-            }
+            var uuidSession = context.Session.GetString("uuid");
+            if (string.IsNullOrWhiteSpace(uuidSession)) return Results.BadRequest();
 
             var data = await new StreamReader(context.Request.Body).ReadLineAsync();
-            if (data is null)
-            {
-                return Results.BadRequest(); 
-            }
+            if (data is null) return Results.BadRequest();
 
-            byte[] byteArray = data.DataUrlToByteArray();
+            var byteArray = data.DataUrlToByteArray();
             var builder = LibraryHelper.CreateWebPEncoderBuilder();
             try
             {
@@ -164,13 +139,10 @@ public static class MapUserEndpoints
             {
                 return Results.BadRequest("文件不支持或不合法: " + e);
             }
-            
+
             var rows = dbContext.Users.Where(i => i.Uuid == uuidSession)
                 .ExecuteUpdate(setter => setter.SetProperty(i => i.Avatar, byteArray));
-            if (rows == 0)
-            {
-                return Results.NotFound();
-            }
+            if (rows == 0) return Results.NotFound();
 
             return Results.Ok();
         });
@@ -182,10 +154,7 @@ public static class MapUserEndpoints
         app.MapGet("/avatar", (string uuid, InstrunetDbContext context) =>
         {
             var arr = context.Users.Where(i => i.Uuid == uuid).Select(i => i.Avatar).FirstOrDefault();
-            if (arr == null)
-            {
-                return Results.NotFound();
-            }
+            if (arr == null) return Results.NotFound();
 
             return Results.File(arr, "image/png");
         });
@@ -197,16 +166,10 @@ public static class MapUserEndpoints
         app.MapGet("/delSong", (string uuid, HttpContext context, InstrunetDbContext dbContext) =>
         {
             var sessionUuid = context.Session.GetString("uuid");
-            if (string.IsNullOrWhiteSpace(sessionUuid))
-            {
-                return Results.BadRequest();
-            }
+            if (string.IsNullOrWhiteSpace(sessionUuid)) return Results.BadRequest();
 
             var entry = dbContext.InstrunetEntries.FirstOrDefault(i => i.Uuid == uuid);
-            if (entry is null)
-            {
-                return Results.NotFound();
-            }
+            if (entry is null) return Results.NotFound();
 
             if (entry.User == sessionUuid)
             {
@@ -218,32 +181,31 @@ public static class MapUserEndpoints
         });
         return app;
     }
+
     public static WebApplication MapRegister(this WebApplication app)
     {
-        app.MapPost("/register", ([FromBody] RegisterContextPayload payload, HttpContext httpContext, InstrunetDbContext dbContext) =>
-        {
-            if(dbContext.Users.Any(i=>i.Username == payload.Username.Trim()))
+        app.MapPost("/register",
+            ([FromBody] RegisterContextPayload payload, HttpContext httpContext, InstrunetDbContext dbContext) =>
             {
-                return Results.BadRequest(); 
-            }
+                if (dbContext.Users.Any(i => i.Username == payload.Username.Trim())) return Results.BadRequest();
 
-            var newUuid = Guid.NewGuid().ToString(); 
-            dbContext.Users.Add(new User
-            {
-                Uuid = newUuid,
-                Username = payload.Username.Trim(),
-                Password = payload.Password.Sha256HexHashString(),
-                Email = payload.Email,
-                Time = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds()
-            });
-            dbContext.SaveChanges();
+                var newUuid = Guid.NewGuid().ToString();
+                dbContext.Users.Add(new User
+                {
+                    Uuid = newUuid,
+                    Username = payload.Username.Trim(),
+                    Password = payload.Password.Sha256HexHashString(),
+                    Email = payload.Email,
+                    Time = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds()
+                });
+                dbContext.SaveChanges();
                 httpContext.Session.SetString("uuid", newUuid);
-            
-            return Results.Json(new
-            {
-                uid = newUuid
+
+                return Results.Json(new
+                {
+                    uid = newUuid
+                });
             });
-        }); 
         return app;
     }
 
@@ -251,7 +213,6 @@ public static class MapUserEndpoints
     {
         var methods = typeof(MapUserEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var methodInfo in methods)
-        {
             switch (methodInfo.Name)
             {
                 case "MapAllUserEndpoints":
@@ -260,7 +221,6 @@ public static class MapUserEndpoints
                     methodInfo.Invoke(null, [app]);
                     continue;
             }
-        }
 
         return app;
     }

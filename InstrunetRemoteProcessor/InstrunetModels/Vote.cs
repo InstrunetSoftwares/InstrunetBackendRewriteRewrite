@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class Vote
+public class Vote
 {
     public string User { get; set; } = null!;
 

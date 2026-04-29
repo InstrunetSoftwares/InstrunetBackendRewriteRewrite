@@ -1,11 +1,10 @@
-﻿namespace InstrunetBackend.Server.IndependantModels
+﻿namespace InstrunetBackend.Server.IndependantModels;
+
+public enum LanguageType
 {
-    public enum LanguageType
-    {
-        Mandarin,
-        English,
-        Japanese,
-        Cantonese,
-        Automatic
-    }
+    Mandarin,
+    English,
+    Japanese,
+    Cantonese,
+    Automatic
 }

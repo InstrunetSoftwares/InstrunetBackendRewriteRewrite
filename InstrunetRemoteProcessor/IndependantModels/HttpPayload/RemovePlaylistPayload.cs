@@ -1,12 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace InstrunetBackend.Server.IndependantModels.HttpPayload
+namespace InstrunetBackend.Server.IndependantModels.HttpPayload;
+
+public class RemovePlaylistPayload
 {
-    public class RemovePlaylistPayload
-    {
-       
-            [JsonPropertyName("playlistuuid")]
-            public string? Playlistuuid { get; set; }
-        
-    }
+    [JsonPropertyName("playlistuuid")] public string? Playlistuuid { get; set; }
 }

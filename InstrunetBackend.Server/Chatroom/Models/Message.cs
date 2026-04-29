@@ -8,20 +8,22 @@ namespace InstrunetBackend.Server.Chatroom.Models;
 public record Message
 {
     public long Id { get; set; }
-    [MaxLength(30)]
-    public required string User { get; set; }
-    [MaxLength(250)]
-    public required string Content { get; set; }
+
+    [MaxLength(30)] public required string User { get; set; }
+
+    [MaxLength(250)] public required string Content { get; set; }
+
     public required DateTime Time { get; set; }
-    
 }
+
 public class PostMessageBody
 {
     public required string Content { get; set; }
     public required string Username { get; set; }
-    public static implicit  operator Message(PostMessageBody m)
+
+    public static implicit operator Message(PostMessageBody m)
     {
-        return new()
+        return new Message
         {
             User = m.Username,
             Content = m.Content,

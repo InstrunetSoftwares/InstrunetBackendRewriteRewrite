@@ -5,15 +5,14 @@ using Index = CueSharp.Index;
 namespace InstrunetTestProject;
 
 [TestClass]
-public partial class Cue
+public class Cue
 {
     [TestMethod]
     public void Playground()
     {
-        var sheet = new CueSharp.CueSheet();
-        sheet.AddTrack(new()
+        var sheet = new CueSheet();
+        sheet.AddTrack(new Track
         {
-            
             Comments = new string[]
             {
             },
@@ -27,7 +26,6 @@ public partial class Cue
             },
             Indices = new Index[]
             {
-                
             },
             ISRC = "",
 
@@ -36,16 +34,14 @@ public partial class Cue
             TrackDataType = DataType.AUDIO,
             TrackFlags = new Flags[]
             {
-                
             },
             Performer = "A",
             PostGap = default,
             PreGap = default,
             TrackNumber = 0
         });
-        sheet.AddTrack(new()
+        sheet.AddTrack(new Track
         {
-            
             Comments = new string[]
             {
             },
@@ -67,7 +63,6 @@ public partial class Cue
             TrackDataType = DataType.AUDIO,
             TrackFlags = new Flags[]
             {
-                
             },
             Performer = "A",
             PostGap = default,

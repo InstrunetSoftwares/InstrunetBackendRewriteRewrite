@@ -4,7 +4,6 @@ using InstrunetBackend.Server.IndependantModels;
 using InstrunetBackend.Server.InstrunetModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace InstrunetBackend.Server.Endpoints;
 
@@ -12,26 +11,18 @@ public static class MapInstrunetCommunityEndpoints
 {
     public static RouteGroupBuilder Upvote(this RouteGroupBuilder app)
     {
-        app.MapPost("/upvote", async ( HttpContext httpContext, InstrunetDbContext context) =>
+        app.MapPost("/upvote", async (HttpContext httpContext, InstrunetDbContext context) =>
         {
             var sessionUuid = httpContext.Session.GetString("uuid");
-            if (string.IsNullOrWhiteSpace(sessionUuid))
-            {
-                return Results.Unauthorized(); 
-            }
+            if (string.IsNullOrWhiteSpace(sessionUuid)) return Results.Unauthorized();
 
             using var reader = new StreamReader(httpContext.Request.Body);
-            var uuid = await reader.ReadToEndAsync(); 
+            var uuid = await reader.ReadToEndAsync();
 
-            if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0)
-            {
-                return Results.NotFound("查无此歌");
-            }
+            if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0) return Results.NotFound("查无此歌");
 
             if (context.Votes.Any(i => i.Master == uuid && i.User == sessionUuid && i.IsUpvote))
-            {
                 return Results.BadRequest("Voted. ");
-            }
 
             if (context.Votes.Any(i => i.Master == uuid && i.User == sessionUuid))
             {
@@ -40,14 +31,14 @@ public static class MapInstrunetCommunityEndpoints
                 return Results.Ok();
             }
 
-            context.Votes.Add(new()
+            context.Votes.Add(new Vote
             {
                 Uuid = Guid.NewGuid().ToString(), IsUpvote = true, Master = uuid, User = sessionUuid
             });
             await context.SaveChangesAsync();
             return Results.Ok();
-        }); 
-        return app; 
+        });
+        return app;
     }
 
     public static RouteGroupBuilder Downvote(this RouteGroupBuilder app)
@@ -55,22 +46,14 @@ public static class MapInstrunetCommunityEndpoints
         app.MapPost("/downvote", async (HttpContext httpContext, InstrunetDbContext context) =>
         {
             var sessionUuid = httpContext.Session.GetString("uuid");
-            if (string.IsNullOrWhiteSpace(sessionUuid))
-            {
-                return Results.Unauthorized();
-            }
+            if (string.IsNullOrWhiteSpace(sessionUuid)) return Results.Unauthorized();
             using var reader = new StreamReader(httpContext.Request.Body);
-            var uuid = await reader.ReadToEndAsync(); 
+            var uuid = await reader.ReadToEndAsync();
 
-            if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0)
-            {
-                return Results.NotFound("查无此歌");
-            }
+            if (context.InstrunetEntries.Count(i => i.Uuid == uuid) == 0) return Results.NotFound("查无此歌");
 
             if (context.Votes.Any(i => i.Master == uuid && i.User == sessionUuid && !i.IsUpvote))
-            {
                 return Results.BadRequest("Voted. ");
-            }
 
             if (context.Votes.Any(i => i.Master == uuid && i.User == sessionUuid))
             {
@@ -79,14 +62,14 @@ public static class MapInstrunetCommunityEndpoints
                 return Results.Ok();
             }
 
-            context.Votes.Add(new()
+            context.Votes.Add(new Vote
             {
                 Uuid = Guid.NewGuid().ToString(), IsUpvote = false, Master = uuid, User = sessionUuid
             });
             await context.SaveChangesAsync();
             return Results.Ok();
         });
-        return app; 
+        return app;
     }
 
     public static RouteGroupBuilder ResetVote(this RouteGroupBuilder app)
@@ -94,33 +77,24 @@ public static class MapInstrunetCommunityEndpoints
         app.MapPost("/reset-vote", async (HttpContext httpContext, InstrunetDbContext context) =>
         {
             var userUuid = httpContext.Session.GetString("uuid");
-            if (string.IsNullOrWhiteSpace(userUuid))
-            {
-                return Results.Unauthorized(); 
-            }
+            if (string.IsNullOrWhiteSpace(userUuid)) return Results.Unauthorized();
             using var reader = new StreamReader(httpContext.Request.Body);
-            var uuid = await reader.ReadToEndAsync(); 
+            var uuid = await reader.ReadToEndAsync();
 
-            if (!context.Votes.Any(i => i.Master == uuid && i.User == userUuid))
-            {
-                return Results.NotFound(); 
-            }
+            if (!context.Votes.Any(i => i.Master == uuid && i.User == userUuid)) return Results.NotFound();
 
             context.Votes.Where(i => i.Master == uuid && i.User == userUuid).ExecuteDelete();
-            return Results.Ok(); 
+            return Results.Ok();
         });
-        return app; 
+        return app;
     }
 
     public static RouteGroupBuilder HasVoted(this RouteGroupBuilder app)
     {
         app.MapGet("/hasVoted", (string uuid, HttpContext httpContext, InstrunetDbContext context) =>
         {
-            var userUuid = httpContext.Session.GetString("uuid"); 
-            if (string.IsNullOrWhiteSpace(userUuid))
-            {
-                return Results.BadRequest(); 
-            }
+            var userUuid = httpContext.Session.GetString("uuid");
+            if (string.IsNullOrWhiteSpace(userUuid)) return Results.BadRequest();
 
             var vote = context.Votes.FirstOrDefault(i => i.Master == uuid && i.User == userUuid);
             return vote switch
@@ -130,7 +104,7 @@ public static class MapInstrunetCommunityEndpoints
                 null => Results.Ok(0)
             };
         });
-        return app; 
+        return app;
     }
 
     public static RouteGroupBuilder GetVote(this RouteGroupBuilder app)
@@ -146,60 +120,60 @@ public static class MapInstrunetCommunityEndpoints
             }
 
             return Results.Ok(context.Votes.Count(i => i.Master == uuid && i.IsUpvote) -
-                              context.Votes.Count(i => i.Master == uuid && !i.IsUpvote)); 
+                              context.Votes.Count(i => i.Master == uuid && !i.IsUpvote));
         });
-        return app; 
+        return app;
     }
 
     public static RouteGroupBuilder PostComment(this RouteGroupBuilder app)
     {
-        app.MapPost("/postComment", ([FromBody] PostCommentPayload postCommentPayload, HttpContext httpContext, InstrunetDbContext context) =>
-        {
-            var sessionUuid = httpContext.Session.GetString("uuid");
-            if (string.IsNullOrEmpty(sessionUuid))
+        app.MapPost("/postComment",
+            ([FromBody] PostCommentPayload postCommentPayload, HttpContext httpContext, InstrunetDbContext context) =>
             {
-                return Results.Unauthorized();
-            }
+                var sessionUuid = httpContext.Session.GetString("uuid");
+                if (string.IsNullOrEmpty(sessionUuid)) return Results.Unauthorized();
 
-            if (context.InstrunetEntries.Any(i => i.Uuid == postCommentPayload.Master)||context.Comments.Any(i => i.Uuid == postCommentPayload.Master))
-            {
-                try
-                {
-                    context.Comments.Add(new()
+                if (context.InstrunetEntries.Any(i => i.Uuid == postCommentPayload.Master) ||
+                    context.Comments.Any(i => i.Uuid == postCommentPayload.Master))
+                    try
                     {
-                        Content = postCommentPayload.Content,
-                        Date = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Master = postCommentPayload.Master,
-                        Poster = sessionUuid,
-                        Uuid = Guid.NewGuid().ToString()
-                    });
-                    context.SaveChanges(); 
-                    return Results.Ok();
-                }
-                catch (Exception ex)
-                {
-                    return Results.InternalServerError(ex.Message);
-                }
-            }
+                        context.Comments.Add(new Comment
+                        {
+                            Content = postCommentPayload.Content,
+                            Date = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                            Master = postCommentPayload.Master,
+                            Poster = sessionUuid,
+                            Uuid = Guid.NewGuid().ToString()
+                        });
+                        context.SaveChanges();
+                        return Results.Ok();
+                    }
+                    catch (Exception ex)
+                    {
+                        return Results.InternalServerError(ex.Message);
+                    }
 
-            return Results.BadRequest("bruh. ");   
-        });
-        return app; 
+                return Results.BadRequest("bruh. ");
+            });
+        return app;
     }
 
     public static RouteGroupBuilder GetComment(this RouteGroupBuilder app)
     {
-        app.MapGet("/getComment", (string uuid, InstrunetDbContext context) =>
-        {
-            return Results.Json(context.Comments.Where(i => i.Master == uuid).ToList().OrderByDescending(i=>DateTimeOffset.FromUnixTimeMilliseconds((long)i.Date) )); 
-        });
+        app.MapGet("/getComment",
+            (string uuid, InstrunetDbContext context) =>
+            {
+                return Results.Json(context.Comments.Where(i => i.Master == uuid).ToList()
+                    .OrderByDescending(i => DateTimeOffset.FromUnixTimeMilliseconds((long)i.Date)));
+            });
         return app;
     }
+
     public static WebApplication MapAllInstrunetCommunityEndpoints(this WebApplication app)
     {
-        var instrunetCommunityApis = app.MapGroup("/api/community"); 
+        var instrunetCommunityApis = app.MapGroup("/api/community");
         var methods = typeof(MapInstrunetCommunityEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
         foreach (var methodInfo in methods)
-        {
             switch (methodInfo.Name)
             {
                 case "MapAllInstrunetCommunityEndpoints":
@@ -208,7 +182,7 @@ public static class MapInstrunetCommunityEndpoints
                     methodInfo.Invoke(null, [instrunetCommunityApis]);
                     continue;
             }
-        }
-        return app; 
+
+        return app;
     }
 }

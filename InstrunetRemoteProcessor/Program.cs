@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
@@ -11,37 +10,26 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.Configure<KestrelServerOptions>(o=>o.Limits.MaxRequestBodySize = long.MaxValue);
-builder.Services.Configure<FormOptions>(o =>
-{
-    o.MultipartBodyLengthLimit = long.MaxValue;
-}); 
+builder.Services.Configure<KestrelServerOptions>(o => o.Limits.MaxRequestBodySize = long.MaxValue);
+builder.Services.Configure<FormOptions>(o => { o.MultipartBodyLengthLimit = long.MaxValue; });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
-var manifestResourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetRemoteProcessor.PROCESS_KEY");
-var key = manifestResourceStream.EncodeToString().Trim(); 
+var manifestResourceStream =
+    Assembly.GetExecutingAssembly().GetManifestResourceStream("InstrunetRemoteProcessor.PROCESS_KEY");
+var key = manifestResourceStream.EncodeToString().Trim();
 manifestResourceStream?.Dispose();
 Console.WriteLine($"Loaded key: {key}");
-app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromForm] IFormFile stuff, int kind) =>
+app.MapPost("/api/process", async (HttpContext context, string remoteKey, [FromForm] IFormFile stuff, int kind) =>
 {
-    if (remoteKey != key)
-    {
-        return Results.Unauthorized();
-    }
-    string uuid = Guid.NewGuid().ToString();
-    using var newItemMs = new MemoryStream(); 
+    if (remoteKey != key) return Results.Unauthorized();
+    var uuid = Guid.NewGuid().ToString();
+    using var newItemMs = new MemoryStream();
     stuff.CopyTo(newItemMs);
     var newItem = newItemMs.ToArray();
-    if (newItem.Length == 0)
-    {
-        return Results.BadRequest();
-    }
+    if (newItem.Length == 0) return Results.BadRequest();
 
     if (kind == 7)
     {
@@ -52,7 +40,8 @@ app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromF
         pP.StartInfo.FileName = "audio-separator";
         pP.StartInfo.WorkingDirectory =
             Directory.GetCurrentDirectory();
-        pP.StartInfo.Arguments = $"{Path.Combine(d.FullName, uuid)} --model_filename UVR_MDXNET_KARA_2.onnx --single_stem Instrumental --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
+        pP.StartInfo.Arguments =
+            $"{Path.Combine(d.FullName, uuid)} --model_filename UVR_MDXNET_KARA_2.onnx --single_stem Instrumental --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
         pP.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
         pP.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
         pP.Start();
@@ -63,29 +52,34 @@ app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromF
             pP.Dispose();
             return Results.InternalServerError();
         }
+
         pP.Dispose();
-        
-        pP = new Process(); 
+
+        pP = new Process();
         pP.StartInfo.FileName = "audio-separator";
         pP.StartInfo.WorkingDirectory =
             Directory.GetCurrentDirectory();
-        pP.StartInfo.Arguments = $"{Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2.mp3")} --model_filename UVR-MDX-NET-Inst_HQ_4.onnx --single_stem Vocals --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
+        pP.StartInfo.Arguments =
+            $"{Path.Combine(d.FullName, uuid + "_(Instrumental)_UVR_MDXNET_KARA_2.mp3")} --model_filename UVR-MDX-NET-Inst_HQ_4.onnx --single_stem Vocals --mdx_enable_denoise  --mdx_segment_size 4000 --mdx_overlap 0.85 --mdx_batch_size 300  --output_format mp3 --output_dir {d.FullName}";
         pP.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
         pP.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
         pP.Start();
         await pP.WaitForExitAsync();
-        File.Delete(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2.mp3"));
+        File.Delete(Path.Combine(d.FullName, uuid + "_(Instrumental)_UVR_MDXNET_KARA_2.mp3"));
         if (pP.ExitCode != 0)
         {
             pP.Dispose();
             return Results.InternalServerError();
         }
+
         pP.Dispose();
-        var processed = File.ReadAllBytes(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
-        File.Delete(Path.Combine(d.FullName, uuid+"_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
+        var processed = File.ReadAllBytes(Path.Combine(d.FullName,
+            uuid + "_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
+        File.Delete(Path.Combine(d.FullName,
+            uuid + "_(Instrumental)_UVR_MDXNET_KARA_2_(Vocals)_UVR-MDX-NET-Inst_HQ_4.mp3"));
         return Results.File(processed);
-        
     }
+
     var modelName = "";
     switch (kind)
     {
@@ -132,7 +126,7 @@ app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromF
     p.StartInfo.EnvironmentVariables["http-proxy"] = "http://127.0.0.1:7890";
     p.StartInfo.EnvironmentVariables["https-proxy"] = "http://127.0.0.1:7890";
     p.Start();
-    await p.WaitForExitAsync(); 
+    await p.WaitForExitAsync();
     File.Delete($"./tmp/instrunet/pre-process/{uuid}");
     if (p.ExitCode != 0)
     {
@@ -174,20 +168,18 @@ app.MapPost("/api/process", async (HttpContext context,string remoteKey,  [FromF
     processedFileStream.Dispose();
     return Results.File(ms.ToArray());
 }).DisableAntiforgery();
-app.MapGet("/api/ping", () => Results.Ok("Pong")); 
+app.MapGet("/api/ping", () => Results.Ok("Pong"));
 app.Run();
 
-static class Ext
+internal static class Ext
 {
     extension(Stream? stream)
     {
         public string EncodeToString()
         {
-            using var mStream = new MemoryStream(); 
+            using var mStream = new MemoryStream();
             stream?.CopyTo(mStream);
             return Encoding.UTF8.GetString(mStream.ToArray());
         }
     }
 }
-
-

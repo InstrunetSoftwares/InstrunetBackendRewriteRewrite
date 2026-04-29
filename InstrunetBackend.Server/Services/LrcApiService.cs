@@ -6,8 +6,6 @@ namespace InstrunetBackend.Server.Services;
 
 public class LrcApiService
 {
-    public Process? Process { get; set; }
-
     public LrcApiService()
     {
         Console.WriteLine("Extracting LrcApi Libraries");
@@ -17,13 +15,9 @@ public class LrcApiService
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-            {
-                stream = assembly.GetManifestResourceStream("InstrunetBackend.Server.lib.lrcapi.lrcapi-Linux-aarch64"); 
-            }
+                stream = assembly.GetManifestResourceStream("InstrunetBackend.Server.lib.lrcapi.lrcapi-Linux-aarch64");
             else if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-            {
                 stream = assembly.GetManifestResourceStream("InstrunetBackend.Server.lib.lrcapi.lrcapi-Linux-x86_64");
-            }
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -33,27 +27,35 @@ public class LrcApiService
         if (stream == null)
         {
             Console.WriteLine("LrcApi not supported on this platform. ");
-            return; 
+            return;
         }
-        var fStream = new FileStream (Program.LibraryCommon + (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "lrcapi/lrcapi.exe" : "lrcapi/lrcapi"), RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? new()
-        {
-            Access = FileAccess.ReadWrite, Mode = FileMode.Create
-        } : new FileStreamOptions()
-        {
-            Access = FileAccess.ReadWrite,
-            Mode = FileMode.Create, 
-            UnixCreateMode =  UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                              UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                              UnixFileMode.OtherRead | UnixFileMode.OtherExecute
-        });
+
+        var fStream = new FileStream(
+            Program.LibraryCommon + (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "lrcapi/lrcapi.exe"
+                : "lrcapi/lrcapi"), RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? new FileStreamOptions
+                {
+                    Access = FileAccess.ReadWrite, Mode = FileMode.Create
+                }
+                : new FileStreamOptions
+                {
+                    Access = FileAccess.ReadWrite,
+                    Mode = FileMode.Create,
+                    UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute
+                });
         stream.CopyTo(fStream);
         stream.Dispose();
         fStream.Dispose();
-        Process = new();
+        Process = new Process();
         Process.StartInfo.FileName = Program.LibraryCommon +
                                      (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                                          ? "lrcapi/lrcapi.exe"
                                          : "lrcapi/lrcapi");
-        Process.Start(); 
+        Process.Start();
     }
+
+    public Process? Process { get; set; }
 }

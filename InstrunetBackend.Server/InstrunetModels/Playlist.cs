@@ -1,6 +1,6 @@
 ﻿namespace InstrunetBackend.Server.InstrunetModels;
 
-public partial class Playlist
+public class Playlist
 {
     public string Owner { get; set; } = null!;
 
@@ -13,4 +13,6 @@ public partial class Playlist
     public byte[]? Tmb { get; set; }
 
     public string? Title { get; set; }
+    public DateTime? Created { get; set; }
+    public DateTime? Modified { get; set; }
 }
