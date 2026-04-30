@@ -12,6 +12,7 @@ using InstrunetBackend.Server.InstrunetModels;
 using InstrunetBackend.Server.lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
 using Index = CueSharp.Index;
 
 namespace InstrunetBackend.Server.Endpoints;
@@ -28,21 +29,37 @@ public static class MapPlaylistEndpoints
     public static WebApplication MapPlaylistBrowse(this WebApplication app)
     {
         
-        app.MapGet("playlist-browse", (HttpContext c, InstrunetDbContext context, OrderType orderType ) =>
+        app.MapGet("playlist-browse", (HttpContext c, InstrunetDbContext context, OrderType orderType, string? search) =>
         {
-            Expression<Func<Playlist, bool>> rule = i =>  (i.Content != "[]") && !i.Private && !string.IsNullOrWhiteSpace(i.Title);
-            return Results.Ok((orderType switch
+            Expression<Func<Playlist, bool>> rule = i =>  i.Content != "[]" && !i.Private && !string.IsNullOrWhiteSpace(i.Title);
+
+            var firstStage = (orderType switch
             {
                 OrderType.TimeDesc => context.Playlists.Where(rule)
                     .OrderByDescending(i => i.Modified),
                 OrderType.TimeAsc => context.Playlists.Where(rule).OrderBy(i => i.Modified),
                 OrderType.NameDesc => context.Playlists.Where(rule).OrderByDescending(i => i.Title),
                 OrderType.NameAsc => context.Playlists.Where(rule).OrderBy(i => i.Title),
-                _ => throw new ArgumentOutOfRangeException(nameof(orderType), orderType, null)
-            }).Where(i=> !i.Private || string.IsNullOrWhiteSpace(i.Title)).Select(i => new
+                _ => throw new ArgumentOutOfRangeException()
+            }).ToList().Select(i => new
             {
-                i.Uuid, i.Owner, i.Title, Content = JsonSerializer.Deserialize<string[]>(i.Content)
-            }).AsEnumerable());
+                i.Uuid, Owner = context.Users.FirstOrDefault(p => p.Uuid == i.Owner), i.Title,
+                Content = JsonSerializer.Deserialize<string[]>(i.Content)!.Select(p=>context.InstrunetEntries.Select(i=>new
+                {
+                    i.Uuid, 
+                    i.SongName,
+                    i.AlbumName,
+                    i.Artist
+                }).FirstOrDefault(a=>a.Uuid == p))
+            }).Where(p => string.IsNullOrWhiteSpace(search) ||
+                          InstrunetExtensions.GetChineseSearchPredicateGeneral(p.Title!, search)||
+                                    InstrunetExtensions.GetChineseSearchPredicateGeneral(p.Owner?.Username ?? "", search) ||
+                          p.Content.Any(c=>InstrunetExtensions.GetChineseSearchPredicateGeneral(c?.SongName ?? "", search) ||
+                                           InstrunetExtensions.GetChineseSearchPredicateGeneral(c?.AlbumName??"", search) ||
+                                           InstrunetExtensions.GetChineseSearchPredicateGeneral(c?.Artist??"", search))
+                          );
+            
+            return Results.Ok(firstStage.Select(p=>new  {p.Uuid, p.Title, Content=  p.Content.Select(i=>i?.Uuid),  Owner = p.Owner?.Uuid}));
         });
         return app; 
     }
@@ -89,8 +106,7 @@ public static class MapPlaylistEndpoints
                         playlistUuid, se);
                     var clone = deserialized.ToList();
                     clone.Remove(p => p == se);
-                    arr.Content = clone.Serialize();
-                    context.SaveChanges();
+                    context.Playlists.Where(i=>i.Uuid == playlistUuid).ExecuteUpdate(s => s.SetProperty(p => p.Content, clone.Serialize()));
                     continue;
                 }
 

@@ -140,11 +140,11 @@ public static class MapGetterEndpoints
                     i.Artist!.Contains(ChineseConverter.Convert(searchParams.SearchStr,
                         ChineseConversionDirection.SimplifiedToTraditional)) ||
                     i.SongName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                        ChineseConversionDirection.SimplifiedToTraditional)) ||
+                        ChineseConversionDirection.TraditionalToSimplified)) ||
                     i.AlbumName.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                        ChineseConversionDirection.SimplifiedToTraditional)) ||
+                        ChineseConversionDirection.TraditionalToSimplified)) ||
                     i.Artist!.Contains(ChineseConverter.Convert(searchParams.SearchStr,
-                        ChineseConversionDirection.SimplifiedToTraditional))
+                        ChineseConversionDirection.TraditionalToSimplified))
                 ).Select(i => new
                 {
                     uuid = i.Uuid,
