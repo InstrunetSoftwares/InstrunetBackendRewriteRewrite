@@ -23,6 +23,15 @@ public class NeteaseMusicService
         Process.StartInfo.EnvironmentVariables.Add("PORT", "3958");
         Process.StartInfo.RedirectStandardInput = false;
         Process.Start();
+        Task.Run(async () =>
+        {
+            while (true)
+            {
+                await Process.WaitForExitAsync();
+                Process.Start();
+            }
+            // ReSharper disable once FunctionNeverReturns
+        });
     }
 
     public Process? Process { get; set; }

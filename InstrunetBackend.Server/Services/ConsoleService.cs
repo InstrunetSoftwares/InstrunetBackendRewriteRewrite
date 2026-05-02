@@ -10,7 +10,7 @@ public class ConsoleService
 {
     private int _dailyCounter;
 
-    public ConsoleService(ObservableCollection<QueueContext> queue, List<QueueContext> cache, WebApplication app)
+    public ConsoleService(ObservableCollection<QueueContext> queue, WebApplication app)
     {
         var t = new Timer();
         t.Interval = 1000;
@@ -32,14 +32,27 @@ public class ConsoleService
 
                         break;
                     case "cache":
-                        Console.WriteLine("Currently in cache: ");
-                        foreach (var cacheItem in cache) Console.WriteLine(cacheItem.Name);
-                        Console.WriteLine($"Count: {cache.Count}. ");
-                        var items = app.Services.GetService<SongImageCache>()?.ImageCacheCollection;
-                        if (items is not null)
+                        if (app.Services.GetService<List<QueueContext>>() is { } entryCache)
                         {
-                            foreach (var item in items) Console.WriteLine(item.Id);
-                            Console.WriteLine($"Image cache count: {items.Count}. ");
+                            Console.WriteLine("Currently in cache: ");
+                            foreach (var cacheItem in entryCache) 
+                                Console.WriteLine(cacheItem.Name);
+                            Console.WriteLine($"Count: {entryCache.Count}. ");
+                        }
+                        else
+                        {
+                            Console.WriteLine("EntryCache is disabled right now. ");
+                        }
+                        
+                        if (app.Services.GetService<List<CacheEntity>>() is {} imageCache)
+                        {
+                            foreach (var item in imageCache) 
+                                Console.WriteLine(item.Id);
+                            Console.WriteLine($"Image cache count: {imageCache.Count}. ");
+                        }
+                        else
+                        {
+                            Console.WriteLine("ImageCache is disabled right now. ");
                         }
 
                         break;

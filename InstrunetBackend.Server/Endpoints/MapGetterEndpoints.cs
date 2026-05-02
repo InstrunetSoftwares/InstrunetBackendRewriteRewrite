@@ -14,9 +14,9 @@ namespace InstrunetBackend.Server.Endpoints;
 
 public static class MapGetterEndpoints
 {
-    public static WebApplication SongAndPitching(this WebApplication app, List<QueueContext>? cache)
+    public static WebApplication SongAndPitching(this WebApplication app)
     {
-        app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext) =>
+        app.MapGet("/{id}", (string id, [FromQuery] float? pitch, HttpContext context, InstrunetDbContext dbContext, [FromServices] List<QueueContext>? cache) =>
         {
             bool IfRange()
             {
@@ -57,12 +57,12 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetAlbumCover(this WebApplication app, List<QueueContext>? cache)
+    public static WebApplication GetAlbumCover(this WebApplication app)
     {
         app.MapGet("/getalbumcover",
-            (string id, InstrunetDbContext context, SongImageCache? imageCache, HttpContext httpContext) =>
+            (string id, InstrunetDbContext context, [FromServices] List<CacheEntity>? imageCache, [FromServices] List<QueueContext>? entryCache, HttpContext httpContext) =>
             {
-                if (imageCache?.ImageCacheCollection.FirstOrDefault(i => i.Id == id) is { } o)
+                if (imageCache?.FirstOrDefault(i => i.Id == id) is { } o)
                 {
                     if (o.Image is null) return Results.BadRequest();
                     httpContext.Response.Headers.Add(
@@ -70,9 +70,9 @@ public static class MapGetterEndpoints
                     return Results.File(o.Image, "image/webp", enableRangeProcessing: true);
                 }
 
-                if (cache?.Any(i => i.Uuid == id) ?? false)
+                if (entryCache?.Any(i => i.Uuid == id) ?? false)
                 {
-                    var cover = cache.First(i => i.Uuid == id).AlbumCover;
+                    var cover = entryCache.First(i => i.Uuid == id).AlbumCover;
                     if (cover is null) return Results.BadRequest();
                     httpContext.Response.Headers.Add(
                         new KeyValuePair<string, StringValues>("X-Resource-From", "Large Object Cache"));
@@ -81,7 +81,7 @@ public static class MapGetterEndpoints
 
                 if (!context.InstrunetEntries.Any(i => i.Uuid == id)) return Results.BadRequest();
                 var coverB = context.InstrunetEntries.Where(i => i.Uuid == id).Select(i => i.Albumcover).First();
-                imageCache?.ImageCacheCollection.Add(new SongImageCache.CacheEntity { Id = id, Image = coverB });
+                imageCache?.Add(new CacheEntity { Id = id, Image = coverB });
 
                 if (coverB is null) return Results.BadRequest();
                 httpContext.Response.Headers.Add(new KeyValuePair<string, StringValues>("X-Resource-From", "Database"));
@@ -90,9 +90,9 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication GetSingleMetadata(this WebApplication app, List<QueueContext>? cache)
+    public static WebApplication GetSingleMetadata(this WebApplication app)
     {
-        app.MapGet("/getsingle", (string id, InstrunetDbContext context) =>
+        app.MapGet("/getsingle", (string id, InstrunetDbContext context, [FromServices] List<QueueContext>? cache) =>
         {
             if (cache?.Any(i => i.Uuid == id) ?? false)
                 return Results.Json(cache.Where(i => i.Uuid == id).Select(i => new
@@ -221,24 +221,14 @@ public static class MapGetterEndpoints
         return app;
     }
 
-    public static WebApplication MapAllGetterEndpoints(this WebApplication app, List<QueueContext>? cache)
+    public static WebApplication MapAllGetterEndpoints(this WebApplication app)
     {
-        var methods = typeof(MapGetterEndpoints).GetMethods(BindingFlags.Static | BindingFlags.Public);
-        foreach (var method in methods)
-            switch (method.Name)
-            {
-                case "MapAllGetterEndpoints":
-                    continue;
-                case "DownloadNeteaseMusic":
-                case "Lyric":
-                case "Search":
-                    method.Invoke(null, [app]);
-                    continue;
-                default:
-                    method.Invoke(null, [app, cache]);
-                    continue;
-            }
-
+        app.SongAndPitching();
+        app.GetAlbumCover();
+        app.GetSingleMetadata();
+        app.DownloadNeteaseMusic();
+        app.Lyric();
+        app.Search();
         return app;
     }
 }

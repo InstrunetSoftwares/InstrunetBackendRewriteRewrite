@@ -228,6 +228,15 @@ internal class Program
         builder.Services.Configure<GzipCompressionProviderOptions>(o => { o.Level = CompressionLevel.SmallestSize; });
         builder.Services.AddDbContext<InstrunetDbContext>();
         builder.Services.AddDbContext<ChatroomDbContext>();
+        if (builder.Configuration["EnableSongImageCache"] == "True")
+        {
+            builder.Services.AddSingleton<List<CacheEntity>>();
+        }
+
+        if (builder.Configuration["EnableEntryCache"] == "True")
+        {
+            builder.Services.AddSingleton<List<QueueContext>>();
+        }
         // Cors
         builder.Services.AddCors(o =>
         {
@@ -257,7 +266,6 @@ internal class Program
 
         // Add services to the container.
         builder.Services.AddAuthorization();
-        builder.Services.AddScoped<SongImageCache>();
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
         var app = builder.Build();
@@ -284,19 +292,18 @@ internal class Program
 
         app.UseResponseCompression();
 
-        var cache = new List<QueueContext>();
-        var unused = new Timer(e =>
+        _ = new Timer(_ =>
         {
-            cache.Clear();
-            // app.Services.GetService<SongImageCache>()?.ImageCacheCollection.Clear();
+            app.Services.GetService<List<QueueContext>>()?.Clear();
+            app.Services.GetService<List<CacheEntity>>()?.Clear();
             GC.Collect();
         }, null, TimeSpan.Zero, TimeSpan.FromDays(2));
 
-        ConsoleService = new ConsoleService(res.Item1, cache, app);
+        ConsoleService = new ConsoleService(res.Item1, app);
 
         app
             .MapAllProcessingEndpoints(res.Item1)
-            .MapAllGetterEndpoints(cache)
+            .MapAllGetterEndpoints()
             .MapAllJustTalkEndpoints(res.Item3)
             .MapAllInstrunetCommunityEndpoints()
             .MapAllUserEndpoints()
